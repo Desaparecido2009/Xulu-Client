@@ -1,0 +1,28 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Runtime
+run/
+Xulu/
+logs/
+crash-reports/
+
+# IDEs
+.idea/
+.settings/
+bin/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.factorypath
+
+# Reference source (do not redistribute)
+xuluv1.5.2/
+
+# OS
+.DS_Store
+Thumbs.db
