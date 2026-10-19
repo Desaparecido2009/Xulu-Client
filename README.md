@@ -166,40 +166,7 @@ src/main/resources/
 
 ---
 
-## Archivos que deben subirse a GitHub
 
-Subir solo lo necesario para compilar:
-
-```
-.gitignore
-LICENSE
-README.md
-build.gradle
-settings.gradle
-gradle.properties
-gradlew
-gradlew.bat
-gradle/wrapper/gradle-wrapper.jar
-gradle/wrapper/gradle-wrapper.properties
-src/
-```
-
-**No subir:**
-
-```
-xuluv1.5.2/     # código original decompilado (referencia, no redistribuir)
-build/          # artefactos de compilación
-.gradle/        # caché de Gradle
-run/            # entorno de ejecución local
-.idea/ .settings/ bin/ *.iml .classpath .project .factorypath
-Xulu/           # configuración generada en runtime
-```
-
-Si el remoto actual apunta al repositorio original de Xulu (`Elementars/Xulu-v1.5.2`),
-**no hacer push ahí**. Crear un repositorio nuevo (por ejemplo `XuluPort`) y subir solo
-los archivos de la lista. `.gitignore` no elimina archivos ya trackeados: si el historial
-local contiene `xuluv1.5.2/`, usar un repositorio nuevo (u orphan branch) y agregar
-únicamente la lista anterior.
 
 ---
 
