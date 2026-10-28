@@ -26,8 +26,8 @@ public class Watermark extends Element
     }
 
     private void updateSize() {
-        this.width = this.getStringWidth(this.getText() + " v1.5.2") + 2;
-        this.height = this.getFontHeight() + 2;
+        this.width = Math.max(80.0, this.getStringWidth(this.getText()) + 2.0);
+        this.height = Math.max(15.0, this.getFontHeight() + 2.0);
     }
 
     private String getText() {
@@ -37,15 +37,17 @@ public class Watermark extends Element
     @Override
     public void onRender() {
         this.updateSize();
+        final String text = this.getText();
+        final double textX = this.getTextX(this.getStringWidth(text));
         int color = ColorUtil.getClickGUIColor().getRGB();
         if (this.rainbow.getValue()) {
             color = Xulu.rgb;
         }
         if (Xulu.CustomFont) {
-            Xulu.cFontRenderer.drawStringWithShadow(this.getText(), this.x + 1.0, this.y + 1.0, ColorUtils.changeAlpha(color, Global.hudAlpha.getValue()));
+            Xulu.cFontRenderer.drawStringWithShadow(text, (float)textX, this.y + 1.0, ColorUtils.changeAlpha(color, Global.hudAlpha.getValue()));
         }
         else {
-            Watermark.fontRenderer.drawShadow(new PoseStack(), this.getText(), (float)this.x + 1.0f, (float)this.y + 1.0f, ColorUtils.changeAlpha(color, Global.hudAlpha.getValue()));
+            Watermark.fontRenderer.drawShadow(new PoseStack(), text, (float)textX, (float)this.y + 1.0f, ColorUtils.changeAlpha(color, Global.hudAlpha.getValue()));
         }
     }
 

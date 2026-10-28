@@ -1,4 +1,5 @@
 package com.elementars.eclient.guirewrite;
+import com.elementars.eclient.module.core.GuiBackgroundShader;
 
 import com.elementars.eclient.Xulu;
 import com.elementars.eclient.module.Category;
@@ -108,7 +109,10 @@ public class HUD extends Screen
 
     @Override
     public void render(final PoseStack poseStack, final int mouseX, final int mouseY, final float partialTicks) {
-        this.renderBackground(poseStack);
+        // Render shader background if enabled
+        if (!GuiBackgroundShader.renderBackground(this.width, this.height, partialTicks)) {
+            this.renderBackground(poseStack);
+        }
         final float midX = this.width / 2.0f;
         final float midY = this.height / 2.0f;
         RenderMethods.drawRect(0.0f, midY, (float)this.width, midY + 1.0f, -1);

@@ -22,10 +22,13 @@ public class XuluTessellator
     }
 
     public static void prepareGL() {
-        RenderSystem.blendFunc(770, 771);
+        RenderSystem.defaultBlendFunc();
         RenderSystem.enableBlend();
+        RenderSystem.disableTexture();
         RenderSystem.disableDepthTest();
+        RenderSystem.depthMask(false);
         RenderSystem.disableCull();
+        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     public static void begin(final int mode) {
@@ -34,6 +37,13 @@ public class XuluTessellator
 
     public static void release() {
         releaseGL();
+    }
+
+    private static void restoreWorldState() {
+        RenderSystem.disableDepthTest();
+        RenderSystem.depthMask(false);
+        RenderSystem.enableTexture();
+        RenderSystem.disableBlend();
     }
 
     public static void render() {
@@ -254,6 +264,29 @@ public class XuluTessellator
         drawBoundingBox(bb, width, red, green, blue, alpha2);
     }
 
+    public static void drawFullBox2(final AABB bb, final BlockPos blockPos, final float width, final int argb) {
+        final int a = argb >>> 24 & 0xFF;
+        final int r = argb >>> 16 & 0xFF;
+        final int g = argb >>> 8 & 0xFF;
+        final int b = argb & 0xFF;
+        drawFullBox2(bb, blockPos, width, r, g, b, a, 255);
+    }
+
+    public static void drawFullBox2(final AABB bb, final BlockPos blockPos, final float width, final int argb, final int alpha2) {
+        final int a = argb >>> 24 & 0xFF;
+        final int r = argb >>> 16 & 0xFF;
+        final int g = argb >>> 8 & 0xFF;
+        final int b = argb & 0xFF;
+        drawFullBox2(bb, blockPos, width, r, g, b, a, alpha2);
+    }
+
+    public static void drawFullBox2(final AABB bb, final BlockPos blockPos, final float width, final int red, final int green, final int blue, final int alpha, final int alpha2) {
+        prepare(7);
+        drawBox2(bb, red, green, blue, alpha, 63);
+        release();
+        drawBoundingBox(bb, width, red, green, blue, alpha2);
+    }
+
     public static void drawBoundingBox(final AABB bb, final float width, final int argb) {
         drawBoundingBox(bb, width, argb >> 16 & 0xFF, argb >> 8 & 0xFF, argb & 0xFF, argb >> 24 & 0xFF);
     }
@@ -297,10 +330,86 @@ public class XuluTessellator
         bufferbuilder.vertex(bb.maxX, bb.minY, bb.minZ).color(rf, gf, bf, af).endVertex();
         Tesselator.getInstance().end();
         RenderSystem.lineWidth(1.0f);
-        RenderSystem.depthMask(true);
-        RenderSystem.enableDepthTest();
-        RenderSystem.enableTexture();
-        RenderSystem.disableBlend();
+        restoreWorldState();
+    }
+
+    public static void drawIndicator(final AABB bb, final int argb, final int sides) {
+        final int a = argb >>> 24 & 0xFF;
+        final int r = argb >>> 16 & 0xFF;
+        final int g = argb >>> 8 & 0xFF;
+        final int b = argb & 0xFF;
+        drawIndicator(bb, r, g, b, a, sides);
+    }
+
+    public static void drawIndicator(final AABB bb, final int r, final int g, final int b, final int a, final int sides) {
+        final float rf = (r & 0xFF) / 255.0f;
+        final float gf = (g & 0xFF) / 255.0f;
+        final float bf = (b & 0xFF) / 255.0f;
+        final float af = (a & 0xFF) / 255.0f;
+        RenderSystem.enableBlend();
+        RenderSystem.disableDepthTest();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.disableTexture();
+        RenderSystem.depthMask(false);
+        RenderSystem.setShader(GameRenderer::getPositionColorShader);
+        final BufferBuilder buffer = getBufferBuilder();
+        buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        if ((sides & 0x1) != 0x0) {
+            buffer.vertex(bb.maxX, bb.minY, bb.minZ).color(rf, gf, bf, af).endVertex();
+            buffer.vertex(bb.maxX, bb.minY, bb.maxZ).color(rf, gf, bf, af).endVertex();
+            buffer.vertex(bb.minX, bb.minY, bb.maxZ).color(rf, gf, bf, af).endVertex();
+            buffer.vertex(bb.minX, bb.minY, bb.minZ).color(rf, gf, bf, af).endVertex();
+        }
+        if ((sides & 0x4) != 0x0) {
+            buffer.vertex(bb.maxX, bb.minY, bb.minZ).color(rf, gf, bf, af).endVertex();
+            buffer.vertex(bb.minX, bb.minY, bb.minZ).color(rf, gf, bf, af).endVertex();
+            buffer.vertex(bb.minX, bb.maxY, bb.minZ).color(rf, gf, bf, 0.0f).endVertex();
+            buffer.vertex(bb.maxX, bb.maxY, bb.minZ).color(rf, gf, bf, 0.0f).endVertex();
+        }
+        if ((sides & 0x8) != 0x0) {
+            buffer.vertex(bb.minX, bb.minY, bb.maxZ).color(rf, gf, bf, af).endVertex();
+            buffer.vertex(bb.maxX, bb.minY, bb.maxZ).color(rf, gf, bf, af).endVertex();
+            buffer.vertex(bb.maxX, bb.maxY, bb.maxZ).color(rf, gf, bf, 0.0f).endVertex();
+            buffer.vertex(bb.minX, bb.maxY, bb.maxZ).color(rf, gf, bf, 0.0f).endVertex();
+        }
+        if ((sides & 0x10) != 0x0) {
+            buffer.vertex(bb.minX, bb.minY, bb.minZ).color(rf, gf, bf, af).endVertex();
+            buffer.vertex(bb.minX, bb.minY, bb.maxZ).color(rf, gf, bf, af).endVertex();
+            buffer.vertex(bb.minX, bb.maxY, bb.maxZ).color(rf, gf, bf, 0.0f).endVertex();
+            buffer.vertex(bb.minX, bb.maxY, bb.minZ).color(rf, gf, bf, 0.0f).endVertex();
+        }
+        if ((sides & 0x20) != 0x0) {
+            buffer.vertex(bb.maxX, bb.minY, bb.maxZ).color(rf, gf, bf, af).endVertex();
+            buffer.vertex(bb.maxX, bb.minY, bb.minZ).color(rf, gf, bf, af).endVertex();
+            buffer.vertex(bb.maxX, bb.maxY, bb.minZ).color(rf, gf, bf, 0.0f).endVertex();
+            buffer.vertex(bb.maxX, bb.maxY, bb.maxZ).color(rf, gf, bf, 0.0f).endVertex();
+        }
+        Tesselator.getInstance().end();
+        restoreWorldState();
+    }
+
+    public static void drawBoundingBoxFace(final AABB bb, final float width, final int red, final int green, final int blue, final int alpha) {
+        final float rf = (red & 0xFF) / 255.0f;
+        final float gf = (green & 0xFF) / 255.0f;
+        final float bf = (blue & 0xFF) / 255.0f;
+        final float af = (alpha & 0xFF) / 255.0f;
+        RenderSystem.enableBlend();
+        RenderSystem.disableDepthTest();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.disableTexture();
+        RenderSystem.depthMask(false);
+        RenderSystem.lineWidth(width);
+        RenderSystem.setShader(GameRenderer::getPositionColorShader);
+        final BufferBuilder buffer = getBufferBuilder();
+        buffer.begin(VertexFormat.Mode.DEBUG_LINE_STRIP, DefaultVertexFormat.POSITION_COLOR);
+        buffer.vertex(bb.minX, bb.minY, bb.minZ).color(rf, gf, bf, af).endVertex();
+        buffer.vertex(bb.minX, bb.minY, bb.maxZ).color(rf, gf, bf, af).endVertex();
+        buffer.vertex(bb.maxX, bb.minY, bb.maxZ).color(rf, gf, bf, af).endVertex();
+        buffer.vertex(bb.maxX, bb.minY, bb.minZ).color(rf, gf, bf, af).endVertex();
+        buffer.vertex(bb.minX, bb.minY, bb.minZ).color(rf, gf, bf, af).endVertex();
+        Tesselator.getInstance().end();
+        RenderSystem.lineWidth(1.0f);
+        restoreWorldState();
     }
 
     public static void drawBox2(final AABB bb, final int argb, final int sides) {

@@ -11,8 +11,12 @@ public class AntiVoidCommand extends Command
 
     @Override
     public void execute(final String[] args) {
-        if (args.length == 1) {
+        if (args.length < 2) {
             Command.sendChatMessage("Please specify a server IP");
+            return;
+        }
+        if (AntiVoid.INSTANCE == null) {
+            Command.sendChatMessage("AntiVoid is not loaded!");
             return;
         }
         if (AntiVoid.INSTANCE.ipList.isEmpty() || !AntiVoid.INSTANCE.ipList.contains(args[1])) {

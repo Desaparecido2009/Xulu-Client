@@ -27,6 +27,7 @@ public enum GLSLShaders
     SUNSETWAVES("/shaders/sunsetwaves.fsh"),
     TRIANGLE("/shaders/triangle.fsh"),
     WAIFU("/shaders/waifu.fsh"),
+    AURORA("/shaders/core/xulu_bg_aurora.fsh"),
     XULU("/shaders/xulu.fsh");
 
     String s;

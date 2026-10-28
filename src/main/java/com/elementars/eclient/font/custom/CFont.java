@@ -1,6 +1,7 @@
 package com.elementars.eclient.font.custom;
 
 import com.mojang.blaze3d.platform.NativeImage;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 
@@ -60,7 +61,12 @@ public class CFont
             }
         }
         final DynamicTexture texture = new DynamicTexture(nativeImage);
-        texture.setFilter(false, false);
+        if (RenderSystem.isOnRenderThread()) {
+            texture.setFilter(false, false);
+        }
+        else {
+            RenderSystem.recordRenderCall(() -> texture.setFilter(false, false));
+        }
         return texture;
     }
 

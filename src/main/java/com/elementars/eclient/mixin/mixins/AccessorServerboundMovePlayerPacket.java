@@ -8,6 +8,13 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 @Mixin(ServerboundMovePlayerPacket.class)
 public interface AccessorServerboundMovePlayerPacket
 {
+    @Accessor("yRot")
+    float getPacketYRot();
+
+    @Mutable
+    @Accessor("yRot")
+    void setPacketYRot(final float yRot);
+
     @Accessor("xRot")
     float getPacketXRot();
 

@@ -13,6 +13,7 @@ import com.elementars.eclient.friend.Friends;
 import com.elementars.eclient.guirewrite.elements.PvPInfo;
 import com.elementars.eclient.module.Category;
 import com.elementars.eclient.module.Module;
+import com.elementars.eclient.util.BlockInteractionHelper;
 import com.elementars.eclient.util.ColorTextUtils;
 import com.elementars.eclient.util.MathUtil;
 import com.elementars.eclient.util.Plane;
@@ -26,20 +27,20 @@ import java.awt.Color;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.NonNullList;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
+import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -60,6 +61,7 @@ import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Explosion;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -70,6 +72,7 @@ import net.minecraft.world.phys.Vec3;
 public class AutoCrystal extends Module
 {
     private final List<BlockPos> placedCrystals;
+    private final List<Entity> ignoreList;
     private BlockPos render;
     private BlockPos renderOld;
     private Entity renderEnt;
@@ -79,6 +82,7 @@ public class AutoCrystal extends Module
     private int newSlot;
     private int waitCounter;
     private int placeCounter;
+    private Level trackedLevel;
     Direction f;
     public static boolean isRand;
     private final Value<Boolean> explode;
@@ -134,7 +138,7 @@ public class AutoCrystal extends Module
     ConcurrentHashMap<BlockPos, Integer> fadeList;
     private Map<EndCrystal, Integer> attemptMap;
     private Map<EndCrystal, Integer> retryMap;
-    private final List<Entity> ignoreList;
+    private static final Random ROTATION_RANDOM = new Random();
     private static float newYaw;
     private static float newPitch;
     private static boolean isSpoofingAngles;
@@ -144,6 +148,7 @@ public class AutoCrystal extends Module
     public AutoCrystal() {
         super("AutoCrystal", "Xulu AutoCrystal", 0, Category.COMBAT, true);
         this.placedCrystals = new ArrayList<BlockPos>();
+        this.ignoreList = new ArrayList<Entity>();
         this.switchCooldown = false;
         this.isAttacking = false;
         this.oldSlot = -1;
@@ -200,7 +205,6 @@ public class AutoCrystal extends Module
         this.fadeList = new ConcurrentHashMap<BlockPos, Integer>();
         this.attemptMap = new WeakHashMap<EndCrystal, Integer>();
         this.retryMap = new WeakHashMap<EndCrystal, Integer>();
-        this.ignoreList = new ArrayList<Entity>();
     }
 
     @Override
@@ -213,32 +217,24 @@ public class AutoCrystal extends Module
     private void doAutoCrystal() {
         AutoCrystal.isRand = this.randRotations.getValue();
         this.isActive = false;
-        if (AutoCrystal.mc.player == null || AutoCrystal.mc.player.isRemoved()) {
+        if (AutoCrystal.mc.player == null || AutoCrystal.mc.player.isRemoved() || !AutoCrystal.mc.player.isAlive() || AutoCrystal.mc.level == null) {
             return;
+        }
+        if (AutoCrystal.mc.level != this.trackedLevel) {
+            this.trackedLevel = AutoCrystal.mc.level;
+            this.resetState();
         }
         if (this.shouldPause()) {
             resetRotation();
             return;
         }
-        if (AutoCrystal.mc.player.getHealth() <= this.toggleHealth.getValue() && this.toggleOff.getValue()) {
+        if (this.toggleOff.getValue() && AutoCrystal.mc.player.getHealth() <= this.toggleHealth.getValue()) {
             this.toggle();
+            return;
         }
-        if (this.fast.getValue() && this.waitTick.getValue() > 0) {
-            if (this.waitCounter < this.waitTick.getValue()) {
-                ++this.waitCounter;
-            }
-            else {
-                this.waitCounter = 0;
-            }
-        }
-        this.fadeList.forEach((pos, alpha) -> {
-            if (alpha <= 0) {
-                this.fadeList.remove(pos);
-            }
-            else {
-                this.fadeList.put(pos, alpha - this.smoothSpeed.getValue());
-            }
-        });
+        PvPInfo.attack = false;
+        PvPInfo.place = false;
+        this.updateFadeList();
         int crystalSlot = (AutoCrystal.mc.player.getMainHandItem().getItem() == Items.END_CRYSTAL) ? AutoCrystal.mc.player.getInventory().selected : -1;
         if (crystalSlot == -1) {
             for (int l = 0; l < 9; ++l) {
@@ -248,46 +244,49 @@ public class AutoCrystal extends Module
                 }
             }
         }
-        this.retryMap.forEach((entityEnderCrystal, integer) -> {
-            if (entityEnderCrystal.isRemoved()) {
-                this.retryMap.remove(entityEnderCrystal);
+        this.ignoreList.removeIf(Entity::isRemoved);
+        for (final Iterator<Map.Entry<EndCrystal, Integer>> iterator = this.retryMap.entrySet().iterator(); iterator.hasNext();) {
+            final Map.Entry<EndCrystal, Integer> entry = iterator.next();
+            if (entry.getKey().isRemoved()) {
+                iterator.remove();
             }
-            else if (this.retryMap.get(entityEnderCrystal) != 0) {
-                this.retryMap.put(entityEnderCrystal, integer - 1);
+            else if (entry.getValue() != 0) {
+                entry.setValue(entry.getValue() - 1);
             }
-        });
+        }
         EndCrystal crystal = null;
         final List<EndCrystal> crystals = new ArrayList<EndCrystal>();
         for (final Entity e2 : AutoCrystal.mc.level.entitiesForRendering()) {
-            if (e2 instanceof EndCrystal) {
-                final EndCrystal ec = (EndCrystal)e2;
-                if (AutoCrystal.mc.player.distanceTo(ec) > this.range.getValue()) {
-                    continue;
+            if (!(e2 instanceof EndCrystal)) {
+                continue;
+            }
+            final EndCrystal ec = (EndCrystal)e2;
+            if (AutoCrystal.mc.player.distanceTo(ec) > this.range.getValue()) {
+                continue;
+            }
+            if (!this.checkCrystal(ec)) {
+                continue;
+            }
+            if (this.attemptMap.containsKey(ec) && this.attemptMap.get(ec).equals(this.hitAttempts.getValue())) {
+                if (this.retryMap.containsKey(ec) && this.retryMap.get(ec) == 0) {
+                    this.attemptMap.put(ec, 0);
+                    this.retryMap.remove(ec);
                 }
-                if (!this.checkCrystal(ec)) {
-                    continue;
-                }
-                if (this.attemptMap.containsKey(ec) && this.attemptMap.get(ec).equals(this.hitAttempts.getValue())) {
-                    if (this.retryMap.containsKey(ec) && this.retryMap.get(ec) == 0) {
-                        this.attemptMap.put(ec, 0);
-                        this.retryMap.remove(ec);
-                    }
-                    else {
-                        if (!this.retryMap.containsKey(ec)) {
-                            this.retryMap.put(ec, this.hitRetryDelay.getValue());
-                            continue;
-                        }
+                else {
+                    if (!this.retryMap.containsKey(ec)) {
+                        this.retryMap.put(ec, this.hitRetryDelay.getValue());
                         continue;
                     }
+                    continue;
                 }
-                crystals.add(ec);
             }
+            crystals.add(ec);
         }
         if (!crystals.isEmpty()) {
             crystals.sort(Comparator.comparing(c -> AutoCrystal.mc.player.distanceTo(c)));
             crystal = crystals.get(0);
         }
-        if (this.explode.getValue() && crystal != null && (!this.fast.getValue() || this.waitCounter == 0)) {
+        if (this.explode.getValue() && crystal != null) {
             if (!AutoCrystal.mc.player.hasLineOfSight(crystal) && AutoCrystal.mc.player.distanceTo(crystal) > this.walls.getValue()) {
                 PvPInfo.attack = false;
                 return;
@@ -309,7 +308,7 @@ public class AutoCrystal extends Module
                 this.newSlot = -1;
                 for (int i = 0; i < 9; ++i) {
                     final ItemStack stack = AutoCrystal.mc.player.getInventory().getItem(i);
-                    if (stack != ItemStack.EMPTY) {
+                    if (!stack.isEmpty()) {
                         if (stack.getItem() instanceof SwordItem) {
                             this.newSlot = i;
                             break;
@@ -321,7 +320,7 @@ public class AutoCrystal extends Module
                     }
                 }
                 if (this.newSlot != -1) {
-                    AutoCrystal.mc.player.getInventory().selected = this.newSlot;
+                    this.setSlot(this.newSlot);
                     this.switchCooldown = true;
                 }
             }
@@ -332,38 +331,20 @@ public class AutoCrystal extends Module
             }
             if (this.spam.getValue()) {
                 for (int i = 0; i < 50; ++i) {
-                    if (this.sync.getValue()) {
-                        AutoCrystal.mc.player.connection.send(ServerboundInteractPacket.createAttackPacket(crystal, AutoCrystal.mc.player.isShiftKeyDown()));
-                    }
-                    else {
-                        AutoCrystal.mc.gameMode.attack(AutoCrystal.mc.player, crystal);
-                    }
+                    this.attack(crystal);
                 }
-            }
-            else if (this.sync.getValue()) {
-                AutoCrystal.mc.player.connection.send(ServerboundInteractPacket.createAttackPacket(crystal, AutoCrystal.mc.player.isShiftKeyDown()));
             }
             else {
-                AutoCrystal.mc.gameMode.attack(AutoCrystal.mc.player, crystal);
+                this.attack(crystal);
             }
             AutoCrystal.mc.player.swing(InteractionHand.MAIN_HAND);
-            for (final Player entityPlayer : AutoCrystal.mc.level.players()) {
-                if (entityPlayer.distanceToSqr(crystal) <= 144.0) {
-                    TargetPlayers.addTargetedPlayer(entityPlayer.getName().getString());
-                }
-            }
             this.isActive = false;
             if (this.fast.getValue()) {
-                final String s = this.fastType.getValue();
-                switch (s) {
-                    case "Instant": {
-                        crystal.discard();
-                        break;
-                    }
-                    case "Ignore": {
-                        this.ignoreList.add(crystal);
-                        break;
-                    }
+                if (this.fastType.getValue().equalsIgnoreCase("Instant")) {
+                    crystal.discard();
+                }
+                else if (this.fastType.getValue().equalsIgnoreCase("Ignore") && !this.ignoreList.contains(crystal)) {
+                    this.ignoreList.add(crystal);
                 }
             }
             if (this.attemptMap.containsKey(crystal)) {
@@ -376,7 +357,7 @@ public class AutoCrystal extends Module
         else {
             resetRotation();
             if (this.oldSlot != -1) {
-                AutoCrystal.mc.player.getInventory().selected = this.oldSlot;
+                this.setSlot(this.oldSlot);
                 this.oldSlot = -1;
             }
             this.isAttacking = false;
@@ -389,11 +370,8 @@ public class AutoCrystal extends Module
                 }
                 this.placeCounter = 0;
             }
-            boolean offhand = false;
-            if (AutoCrystal.mc.player.getOffhandItem().getItem() == Items.END_CRYSTAL) {
-                offhand = true;
-            }
-            else if (crystalSlot == -1) {
+            final boolean offhand = AutoCrystal.mc.player.getOffhandItem().getItem() == Items.END_CRYSTAL;
+            if (!offhand && crystalSlot == -1) {
                 return;
             }
             final List<BlockPos> blocks = this.findCrystalBlocks();
@@ -409,12 +387,13 @@ public class AutoCrystal extends Module
             entities.removeIf(entity -> AutoCrystal.mc.player.distanceTo(entity) > this.ER.getValue());
             if (this.pre.getValue()) {
                 for (final Player player : AutoCrystal.mc.level.players()) {
-                    if (!Friends.isFriend(player.getName().getString())) {
-                        if (!Enemies.isEnemy(player.getName().getString())) {
-                            continue;
-                        }
-                        enemies.add(player);
+                    if (Friends.isFriend(player.getName().getString())) {
+                        continue;
                     }
+                    if (!Enemies.isEnemy(player.getName().getString())) {
+                        continue;
+                    }
+                    enemies.add(player);
                 }
                 enemies.sort(Comparator.comparing(e -> AutoCrystal.mc.player.distanceTo(e)));
                 enemies.removeIf(entity -> AutoCrystal.mc.player.distanceTo(entity) > this.ER.getValue());
@@ -425,50 +404,41 @@ public class AutoCrystal extends Module
             }
             BlockPos q = null;
             double damage = 0.5;
-            final double dist = 6.9696969E7;
             for (final Entity entity2 : entities) {
                 if (entity2 == AutoCrystal.mc.player) {
                     continue;
                 }
-                if (((LivingEntity)entity2).getHealth() <= 0.0f || entity2.isRemoved()) {
-                    continue;
-                }
-                if (AutoCrystal.mc.player == null) {
+                if (!(entity2 instanceof LivingEntity) || ((LivingEntity)entity2).getHealth() <= 0.0f || entity2.isRemoved()) {
                     continue;
                 }
                 for (final BlockPos blockPos : blocks) {
                     final double b = entity2.distanceToSqr(blockPos.getX() + 0.5, blockPos.getY() + 0.5, blockPos.getZ() + 0.5);
-                    if (!entity2.isRemoved()) {
-                        if (((LivingEntity)entity2).getHealth() <= 0.0f) {
-                            continue;
-                        }
-                        if (b >= 169.0) {
-                            continue;
-                        }
-                        final double d = calculateDamage(blockPos.getX() + 0.5, blockPos.getY() + 1, blockPos.getZ() + 0.5, entity2);
-                        if (d < this.minDmg.getValue() && ((LivingEntity)entity2).getHealth() + ((LivingEntity)entity2).getAbsorptionAmount() > ((AutoTotem.isFullArmor((Player)entity2) && !this.isArmorLow((Player)entity2)) ? this.facePlace.getValue() : 36)) {
-                            continue;
-                        }
-                        if (d <= damage) {
-                            continue;
-                        }
-                        final double self = calculateDamage(blockPos.getX() + 0.5, blockPos.getY() + 1, blockPos.getZ() + 0.5, AutoCrystal.mc.player);
-                        if (self > d && d >= ((LivingEntity)entity2).getHealth()) {
-                            continue;
-                        }
-                        if (self - 0.5 > AutoCrystal.mc.player.getHealth()) {
-                            continue;
-                        }
-                        if (self > this.maxSelfDmg.getValue()) {
-                            continue;
-                        }
-                        damage = d;
-                        q = blockPos;
-                        this.renderEnt = entity2;
+                    if (b >= 169.0) {
+                        continue;
                     }
+                    final double d = calculateDamage(blockPos.getX() + 0.5, blockPos.getY() + 1.0, blockPos.getZ() + 0.5, entity2);
+                    if (d < this.minDmg.getValue() && ((LivingEntity)entity2).getHealth() + ((LivingEntity)entity2).getAbsorptionAmount() > ((AutoTotem.isFullArmor((Player)entity2) && !this.isArmorLow((Player)entity2)) ? this.facePlace.getValue() : 36)) {
+                        continue;
+                    }
+                    if (d <= damage) {
+                        continue;
+                    }
+                    final double self = calculateDamage(blockPos.getX() + 0.5, blockPos.getY() + 1.0, blockPos.getZ() + 0.5, AutoCrystal.mc.player);
+                    if (self > d && d >= ((LivingEntity)entity2).getHealth()) {
+                        continue;
+                    }
+                    if (self - 0.5 > AutoCrystal.mc.player.getHealth()) {
+                        continue;
+                    }
+                    if (self > this.maxSelfDmg.getValue()) {
+                        continue;
+                    }
+                    damage = d;
+                    q = blockPos;
+                    this.renderEnt = entity2;
                 }
             }
-            if (damage == 0.5) {
+            if (q == null) {
                 this.render = null;
                 this.renderEnt = null;
                 resetRotation();
@@ -476,20 +446,16 @@ public class AutoCrystal extends Module
             }
             this.render = q;
             if (this.place.getValue()) {
-                if (AutoCrystal.mc.player == null) {
-                    PvPInfo.place = false;
-                    return;
-                }
                 this.isActive = true;
                 if (this.rotate.getValue()) {
                     this.lookAtPacket(q.getX() + 0.5, q.getY() - 0.5, q.getZ() + 0.5, AutoCrystal.mc.player);
                 }
                 final BlockHitResult result = AutoCrystal.mc.level.clip(new ClipContext(new Vec3(AutoCrystal.mc.player.getX(), AutoCrystal.mc.player.getY() + AutoCrystal.mc.player.getEyeHeight(), AutoCrystal.mc.player.getZ()), new Vec3(q.getX() + 0.5, q.getY() - 0.5, q.getZ() + 0.5), ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, AutoCrystal.mc.player));
                 if (this.raytrace.getValue()) {
-                    if (result == null || result.getType() == HitResult.Type.MISS || result.getDirection() == null) {
-                        q = null;
+                    if (result == null || result.getType() != HitResult.Type.BLOCK || result.getDirection() == null) {
                         this.f = null;
                         this.render = null;
+                        this.renderEnt = null;
                         resetRotation();
                         this.isActive = false;
                         PvPInfo.place = false;
@@ -498,35 +464,30 @@ public class AutoCrystal extends Module
                     this.f = result.getDirection();
                 }
                 if (!offhand && AutoCrystal.mc.player.getInventory().selected != crystalSlot) {
-                    if (this.autoSwitch.getValue()) {
-                        if (this.noGappleSwitch.getValue() && this.isEatingGap()) {
-                            this.isActive = false;
-                            resetRotation();
-                            PvPInfo.place = false;
-                            return;
-                        }
-                        this.isActive = true;
-                        AutoCrystal.mc.player.getInventory().selected = crystalSlot;
+                    if (this.autoSwitch.getValue() && !(this.noGappleSwitch.getValue() && this.isEatingGap())) {
+                        this.setSlot(crystalSlot);
                         resetRotation();
                         this.switchCooldown = true;
+                    }
+                    else {
+                        this.isActive = false;
+                        resetRotation();
                     }
                     PvPInfo.place = false;
                     return;
                 }
                 if (this.switchCooldown) {
                     this.switchCooldown = false;
+                    this.isActive = false;
                     PvPInfo.place = false;
                     return;
                 }
-                if (q != null && AutoCrystal.mc.player != null) {
-                    PvPInfo.place = true;
-                    this.isActive = true;
-                    if (this.raytrace.getValue() && this.f != null) {
-                        AutoCrystal.mc.player.connection.send(new ServerboundUseItemOnPacket(offhand ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND, new BlockHitResult(Vec3.atLowerCornerOf(q), this.f, q, false)));
-                    }
-                    else {
-                        AutoCrystal.mc.player.connection.send(new ServerboundUseItemOnPacket(offhand ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND, new BlockHitResult(Vec3.atLowerCornerOf(q), Direction.UP, q, false)));
-                    }
+                PvPInfo.place = true;
+                this.isActive = true;
+                final Vec3 hitVec = (this.raytrace.getValue() && result != null && result.getType() == HitResult.Type.BLOCK) ? result.getLocation() : new Vec3(q.getX() + 0.5, q.getY() + 1.0, q.getZ() + 0.5);
+                final Direction face = (this.raytrace.getValue() && this.f != null) ? this.f : Direction.UP;
+                AutoCrystal.mc.player.connection.send(new ServerboundUseItemOnPacket(offhand ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND, new BlockHitResult(hitVec, face, q, false)));
+                if (this.renderEnt != null) {
                     TargetPlayers.addTargetedPlayer(this.renderEnt.getName().getString());
                 }
                 this.isActive = false;
@@ -534,9 +495,54 @@ public class AutoCrystal extends Module
         }
     }
 
+    private void attack(final EndCrystal crystal) {
+        if (this.sync.getValue()) {
+            AutoCrystal.mc.player.connection.send(ServerboundInteractPacket.createAttackPacket(crystal, AutoCrystal.mc.player.isShiftKeyDown()));
+        }
+        else {
+            AutoCrystal.mc.gameMode.attack(AutoCrystal.mc.player, crystal);
+        }
+    }
+
+    private void updateFadeList() {
+        if (!this.smoothEsp.getValue()) {
+            this.fadeList.clear();
+            return;
+        }
+        final int speed = this.smoothSpeed.getValue();
+        for (final Iterator<Map.Entry<BlockPos, Integer>> iterator = this.fadeList.entrySet().iterator(); iterator.hasNext();) {
+            final Map.Entry<BlockPos, Integer> entry = iterator.next();
+            final int alpha = entry.getValue() - speed;
+            if (alpha <= 0) {
+                iterator.remove();
+            }
+            else {
+                entry.setValue(alpha);
+            }
+        }
+    }
+
+    private void resetState() {
+        this.placedCrystals.clear();
+        this.ignoreList.clear();
+        this.attemptMap.clear();
+        this.retryMap.clear();
+        this.fadeList.clear();
+        this.render = null;
+        this.renderEnt = null;
+        this.renderOld = null;
+        this.waitCounter = 0;
+        this.placeCounter = 0;
+        this.switchCooldown = false;
+        this.isAttacking = false;
+        this.oldSlot = -1;
+        this.newSlot = -1;
+        resetRotation();
+    }
+
     @Override
     public void onRender() {
-        if (this.render == null || AutoCrystal.mc.player == null) {
+        if (this.render == null || this.renderEnt == null || AutoCrystal.mc.player == null) {
             return;
         }
         if (!this.renderBoolean.getValue()) {
@@ -552,7 +558,7 @@ public class AutoCrystal extends Module
                 color3 = RainbowUtils.b;
             }
             final Plane pos = VectorUtils.toScreen(this.render.getX() + 0.5, this.render.getY() + 0.5, this.render.getZ() + 0.5);
-            final float damage = calculateDamage(this.render.getX() + 0.5, this.render.getY() + 1, this.render.getZ() + 0.5, this.renderEnt);
+            final float damage = calculateDamage(this.render.getX() + 0.5, this.render.getY() + 1.0, this.render.getZ() + 0.5, this.renderEnt);
             final String text = String.valueOf(MathUtil.round(damage, 1));
             AutoCrystal.fontRenderer.drawShadow(new PoseStack(), text, (float)pos.getX() - AutoCrystal.fontRenderer.width(text) / 2, (float)pos.getY() - AutoCrystal.fontRenderer.lineHeight / 2, this.damageWhite.getValue() ? -1 : new Color(color1, color2, color3).getRGB());
         }
@@ -560,13 +566,13 @@ public class AutoCrystal extends Module
 
     @Override
     public void onWorldRender(final RenderEvent event) {
-        if (this.render == null || AutoCrystal.mc.player == null) {
+        if (this.render == null || AutoCrystal.mc.player == null || AutoCrystal.mc.level == null) {
             return;
         }
         if (!this.renderBoolean.getValue()) {
             return;
         }
-        if (this.renderOld != null && this.renderOld != this.render) {
+        if (this.smoothEsp.getValue() && this.renderOld != null && !this.renderOld.equals(this.render)) {
             this.fadeList.put(this.renderOld, this.espA.getValue());
         }
         int color1 = this.espR.getValue();
@@ -585,35 +591,40 @@ public class AutoCrystal extends Module
         else if (this.rendermode.getValue().equalsIgnoreCase("Outline")) {
             final BlockState iBlockState2 = AutoCrystal.mc.level.getBlockState(this.render);
             final Vec3 interp2 = event.getRenderPos();
-            XuluTessellator.drawBoundingBox(iBlockState2.getShape(AutoCrystal.mc.level, this.render).bounds().move(this.render).inflate(0.0020000000949949026).move(-interp2.x, -interp2.y, -interp2.z), 1.5f, color1, color2, color3, this.espA.getValue());
+            final AABB box2 = BlockInteractionHelper.getBlockBounds(iBlockState2, AutoCrystal.mc.level, this.render).inflate(0.0020000000949949026).move(-interp2.x, -interp2.y, -interp2.z);
+            XuluTessellator.drawBoundingBox(box2, 1.5f, color1, color2, color3, this.espA.getValue());
         }
         else if (this.rendermode.getValue().equalsIgnoreCase("Full")) {
             final BlockState iBlockState3 = AutoCrystal.mc.level.getBlockState(this.render);
             final Vec3 interp3 = event.getRenderPos();
-            XuluTessellator.drawFullBox(iBlockState3.getShape(AutoCrystal.mc.level, this.render).bounds().move(this.render).inflate(0.0020000000949949026).move(-interp3.x, -interp3.y, -interp3.z), this.render, 1.5f, color1, color2, color3, this.espA.getValue(), this.espF.getValue());
+            final AABB box3 = BlockInteractionHelper.getBlockBounds(iBlockState3, AutoCrystal.mc.level, this.render).inflate(0.0020000000949949026).move(-interp3.x, -interp3.y, -interp3.z);
+            XuluTessellator.drawFullBox(box3, this.render, 1.5f, color1, color2, color3, this.espA.getValue(), this.espF.getValue());
         }
         if (this.smoothEsp.getValue()) {
             for (final BlockPos pos : this.fadeList.keySet()) {
-                if (this.fadeList.get(pos) < 0) {
+                final Integer alpha = this.fadeList.get(pos);
+                if (alpha == null) {
+                    continue;
+                }
+                if (alpha <= 0) {
                     this.fadeList.remove(pos);
                 }
                 else if (this.rendermode.getValue().equalsIgnoreCase("Solid")) {
                     XuluTessellator.prepare(7);
-                    XuluTessellator.drawBox(pos, color1, color2, color3, this.fadeList.get(pos), 63);
+                    XuluTessellator.drawBox(pos, color1, color2, color3, alpha, 63);
                     XuluTessellator.release();
                 }
                 else if (this.rendermode.getValue().equalsIgnoreCase("Outline")) {
                     final BlockState iBlockState4 = AutoCrystal.mc.level.getBlockState(pos);
                     final Vec3 interp4 = event.getRenderPos();
-                    XuluTessellator.drawBoundingBox(iBlockState4.getShape(AutoCrystal.mc.level, pos).bounds().move(pos).inflate(0.0020000000949949026).move(-interp4.x, -interp4.y, -interp4.z), 1.5f, color1, color2, color3, this.fadeList.get(pos));
+                    final AABB box4 = BlockInteractionHelper.getBlockBounds(iBlockState4, AutoCrystal.mc.level, pos).inflate(0.0020000000949949026).move(-interp4.x, -interp4.y, -interp4.z);
+                    XuluTessellator.drawBoundingBox(box4, 1.5f, color1, color2, color3, alpha);
                 }
-                else {
-                    if (!this.rendermode.getValue().equalsIgnoreCase("Full")) {
-                        continue;
-                    }
+                else if (this.rendermode.getValue().equalsIgnoreCase("Full")) {
                     final BlockState iBlockState5 = AutoCrystal.mc.level.getBlockState(pos);
                     final Vec3 interp5 = event.getRenderPos();
-                    XuluTessellator.drawFullBox(iBlockState5.getShape(AutoCrystal.mc.level, pos).bounds().move(pos).inflate(0.0020000000949949026).move(-interp5.x, -interp5.y, -interp5.z), this.render, 1.5f, color1, color2, color3, this.fadeList.get(pos), this.espF.getValue());
+                    final AABB box5 = BlockInteractionHelper.getBlockBounds(iBlockState5, AutoCrystal.mc.level, pos).inflate(0.0020000000949949026).move(-interp5.x, -interp5.y, -interp5.z);
+                    XuluTessellator.drawFullBox(box5, pos, 1.5f, color1, color2, color3, alpha, this.espF.getValue());
                 }
             }
         }
@@ -622,7 +633,7 @@ public class AutoCrystal extends Module
 
     @Override
     public String getHudInfo() {
-        if (this.renderEnt == null) {
+        if (this.renderEnt == null || AutoCrystal.mc.player == null) {
             return null;
         }
         if (AutoCrystal.mc.player.distanceTo(this.renderEnt) <= this.range.getValue()) {
@@ -632,7 +643,7 @@ public class AutoCrystal extends Module
     }
 
     private boolean checkCrystal(final Entity e) {
-        if (e == null) {
+        if (e == null || AutoCrystal.mc.player == null) {
             return false;
         }
         if (this.noSuicide.getValue()) {
@@ -642,33 +653,21 @@ public class AutoCrystal extends Module
             }
         }
         final String s = this.explodeMode.getValue();
-        switch (s) {
-            case "OnlyOwn": {
-                if (this.render != null && this.render.distToCenterSqr((int)e.getX(), (int)e.getY(), (int)e.getZ()) <= 9.0) {
-                    return true;
-                }
-                if (!this.placedCrystals.isEmpty()) {
-                    synchronized (this.placedCrystals) {
-                        try {
-                            for (final BlockPos pos : this.placedCrystals) {
-                                if (pos.distToCenterSqr((int)e.getX(), (int)e.getY(), (int)e.getZ()) <= 9.0) {
-                                    return true;
-                                }
-                            }
-                        }
-                        catch (Exception ex) {
-                            ex.printStackTrace();
-                        }
-                    }
-                    break;
-                }
-                break;
-            }
-            case "All": {
+        if (s.equalsIgnoreCase("OnlyOwn")) {
+            final BlockPos crystalPos = new BlockPos(e.getX(), e.getY(), e.getZ());
+            if (this.render != null && this.render.distManhattan(crystalPos) <= 3) {
                 return true;
             }
+            synchronized (this.placedCrystals) {
+                for (final BlockPos pos : this.placedCrystals) {
+                    if (pos.distManhattan(crystalPos) <= 3) {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
-        return false;
+        return true;
     }
 
     private boolean isArmorLow(final Player player) {
@@ -676,6 +675,9 @@ public class AutoCrystal extends Module
             return false;
         }
         for (final ItemStack stack : player.getArmorSlots()) {
+            if (stack.isEmpty() || stack.getMaxDamage() <= 0) {
+                return true;
+            }
             final float green = (stack.getMaxDamage() - (float)stack.getDamageValue()) / stack.getMaxDamage();
             final float red = 1.0f - green;
             final int dmg = 100 - (int)(red * 100.0f);
@@ -696,33 +698,66 @@ public class AutoCrystal extends Module
         setYawAndPitch((float)v[0], (float)v[1]);
     }
 
+    private void setSlot(final int slot) {
+        if (slot < 0 || slot > 8 || AutoCrystal.mc.player == null || AutoCrystal.mc.player.getInventory().selected == slot) {
+            return;
+        }
+        AutoCrystal.mc.player.getInventory().selected = slot;
+        if (AutoCrystal.mc.player.connection != null) {
+            AutoCrystal.mc.player.connection.send(new ServerboundSetCarriedItemPacket(slot));
+        }
+    }
+
     private boolean canPlaceCrystal(final BlockPos blockPos) {
+        if (AutoCrystal.mc.level == null || !AutoCrystal.mc.level.isInWorldBounds(blockPos)) {
+            return false;
+        }
         final BlockPos boost = blockPos.above();
         final BlockPos boost2 = blockPos.above(2);
-        return (AutoCrystal.mc.level.getBlockState(blockPos).getBlock() == Blocks.BEDROCK || AutoCrystal.mc.level.getBlockState(blockPos).getBlock() == Blocks.OBSIDIAN) && AutoCrystal.mc.level.getBlockState(boost).getBlock() == Blocks.AIR && (this.oneHole.getValue() || AutoCrystal.mc.level.getBlockState(boost2).getBlock() == Blocks.AIR) && this.isTrulyEmpty(AutoCrystal.mc.level.getEntitiesOfClass(Entity.class, new AABB(boost))) && this.isTrulyEmpty(AutoCrystal.mc.level.getEntitiesOfClass(Entity.class, new AABB(boost2)));
+        final BlockState base = AutoCrystal.mc.level.getBlockState(blockPos);
+        if (base.getBlock() != Blocks.BEDROCK && base.getBlock() != Blocks.OBSIDIAN) {
+            return false;
+        }
+        if (!AutoCrystal.mc.level.isInWorldBounds(boost) || !AutoCrystal.mc.level.getBlockState(boost).isAir()) {
+            return false;
+        }
+        if (!this.isTrulyEmpty(AutoCrystal.mc.level.getEntitiesOfClass(Entity.class, new AABB(boost)))) {
+            return false;
+        }
+        if (!this.oneHole.getValue()) {
+            if (!AutoCrystal.mc.level.isInWorldBounds(boost2) || !AutoCrystal.mc.level.getBlockState(boost2).isAir()) {
+                return false;
+            }
+            if (!this.isTrulyEmpty(AutoCrystal.mc.level.getEntitiesOfClass(Entity.class, new AABB(boost2)))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean isTrulyEmpty(final List<Entity> list) {
-        if (list.isEmpty()) {
-            return true;
-        }
-        boolean isEmpty = true;
         for (final Entity e : list) {
             if (!this.ignoreList.contains(e)) {
-                isEmpty = false;
-                break;
+                return false;
             }
         }
-        return isEmpty;
+        return true;
     }
 
     public static BlockPos getPlayerPos() {
+        if (AutoCrystal.mc.player == null) {
+            return BlockPos.ZERO;
+        }
         return new BlockPos(Math.floor(AutoCrystal.mc.player.getX()), Math.floor(AutoCrystal.mc.player.getY()), Math.floor(AutoCrystal.mc.player.getZ()));
     }
 
     private List<BlockPos> findCrystalBlocks() {
-        final NonNullList<BlockPos> positions = NonNullList.create();
-        positions.addAll(this.getSphere(getPlayerPos(), this.placeRange.getValue(), this.placeRange.getValue().intValue(), false, true, 0).stream().filter(this::canPlaceCrystal).collect(Collectors.toList()));
+        final List<BlockPos> positions = new ArrayList<BlockPos>();
+        for (final BlockPos pos : this.getSphere(getPlayerPos(), this.placeRange.getValue(), this.placeRange.getValue().intValue(), false, true, 0)) {
+            if (this.canPlaceCrystal(pos)) {
+                positions.add(pos);
+            }
+        }
         return positions;
     }
 
@@ -746,6 +781,9 @@ public class AutoCrystal extends Module
     }
 
     public static float calculateDamage(final double posX, final double posY, final double posZ, final Entity entity) {
+        if (entity == null || AutoCrystal.mc.level == null) {
+            return 0.0f;
+        }
         final float doubleExplosionSize = 12.0f;
         final double distancedsize = Math.sqrt(entity.distanceToSqr(posX, posY, posZ)) / doubleExplosionSize;
         final Vec3 vec3d = new Vec3(posX, posY, posZ);
@@ -777,6 +815,9 @@ public class AutoCrystal extends Module
     }
 
     private static float getDamageMultiplied(final float damage) {
+        if (AutoCrystal.mc.level == null) {
+            return damage;
+        }
         final int diff = AutoCrystal.mc.level.getDifficulty().getId();
         return damage * ((diff == 0) ? 0.0f : ((diff == 2) ? 1.0f : ((diff == 1) ? 0.5f : 1.5f)));
     }
@@ -786,11 +827,18 @@ public class AutoCrystal extends Module
     }
 
     public static void updateRotations() {
+        if (AutoCrystal.mc.player == null) {
+            return;
+        }
         AutoCrystal.newYaw = AutoCrystal.mc.player.getYRot();
         AutoCrystal.newPitch = AutoCrystal.mc.player.getXRot();
     }
 
     public static void restoreRotations() {
+        if (AutoCrystal.mc.player == null) {
+            resetRotation();
+            return;
+        }
         AutoCrystal.mc.player.setYRot(AutoCrystal.newYaw);
         AutoCrystal.mc.player.setYHeadRot(AutoCrystal.newYaw);
         AutoCrystal.mc.player.setXRot(AutoCrystal.newPitch);
@@ -798,6 +846,9 @@ public class AutoCrystal extends Module
     }
 
     public static void setPlayerRotations(final float yaw, final float pitch) {
+        if (AutoCrystal.mc.player == null) {
+            return;
+        }
         AutoCrystal.mc.player.setYRot(yaw);
         AutoCrystal.mc.player.setYHeadRot(yaw);
         AutoCrystal.mc.player.setXRot(pitch);
@@ -819,18 +870,20 @@ public class AutoCrystal extends Module
     }
 
     private static void setYawAndPitch(final float yaw1, final float pitch1) {
-        final Random rand = new Random(2L);
-        AutoCrystal.yaw = yaw1 + (AutoCrystal.isRand ? (rand.nextFloat() / 100.0f) : 0.0f);
-        AutoCrystal.pitch = pitch1 + (AutoCrystal.isRand ? (rand.nextFloat() / 100.0f) : 0.0f);
+        AutoCrystal.yaw = yaw1 + (AutoCrystal.isRand ? (ROTATION_RANDOM.nextFloat() / 100.0f) : 0.0f);
+        AutoCrystal.pitch = pitch1 + (AutoCrystal.isRand ? (ROTATION_RANDOM.nextFloat() / 100.0f) : 0.0f);
         AutoCrystal.isSpoofingAngles = true;
     }
 
     private static void resetRotation() {
-        if (AutoCrystal.isSpoofingAngles) {
+        if (!AutoCrystal.isSpoofingAngles) {
+            return;
+        }
+        if (AutoCrystal.mc.player != null) {
             AutoCrystal.yaw = AutoCrystal.mc.player.getYRot();
             AutoCrystal.pitch = AutoCrystal.mc.player.getXRot();
-            AutoCrystal.isSpoofingAngles = false;
         }
+        AutoCrystal.isSpoofingAngles = false;
     }
 
     public static double[] calculateLookAt(final double px, final double py, final double pz, final Player me) {
@@ -838,6 +891,9 @@ public class AutoCrystal extends Module
         double diry = me.getY() - py;
         double dirz = me.getZ() - pz;
         final double len = Math.sqrt(dirx * dirx + diry * diry + dirz * dirz);
+        if (len <= 1.0E-6) {
+            return new double[] { me.getYRot(), me.getXRot() };
+        }
         dirx /= len;
         diry /= len;
         dirz /= len;
@@ -854,20 +910,24 @@ public class AutoCrystal extends Module
         final Packet<?> packet = event.getPacket();
         if (packet instanceof ServerboundMovePlayerPacket && this.rotate.getValue() && AutoCrystal.isSpoofingAngles) {
             final ServerboundMovePlayerPacket movePacket = (ServerboundMovePlayerPacket)packet;
-            if (movePacket.hasRotation()) {
-                if (movePacket.hasPosition()) {
-                    event.setPacket(new ServerboundMovePlayerPacket.PosRot(movePacket.getX(0.0), movePacket.getY(0.0), movePacket.getZ(0.0), (float)AutoCrystal.yaw, (float)AutoCrystal.pitch, movePacket.isOnGround()));
-                }
-                else {
-                    event.setPacket(new ServerboundMovePlayerPacket.Rot((float)AutoCrystal.yaw, (float)AutoCrystal.pitch, movePacket.isOnGround()));
-                }
+            if (movePacket.hasPosition()) {
+                event.setPacket(new ServerboundMovePlayerPacket.PosRot(movePacket.getX(0.0), movePacket.getY(0.0), movePacket.getZ(0.0), (float)AutoCrystal.yaw, (float)AutoCrystal.pitch, movePacket.isOnGround()));
+            }
+            else {
+                event.setPacket(new ServerboundMovePlayerPacket.Rot((float)AutoCrystal.yaw, (float)AutoCrystal.pitch, movePacket.isOnGround()));
             }
         }
         if (event.getPacket() instanceof ServerboundUseItemOnPacket) {
             final ServerboundUseItemOnPacket cpacket = (ServerboundUseItemOnPacket)event.getPacket();
+            if (AutoCrystal.mc.player == null) {
+                return;
+            }
             if (AutoCrystal.mc.player.getMainHandItem().getItem() == Items.END_CRYSTAL || AutoCrystal.mc.player.getOffhandItem().getItem() == Items.END_CRYSTAL) {
+                final BlockPos placed = cpacket.getHitResult().getBlockPos();
                 synchronized (this.placedCrystals) {
-                    this.placedCrystals.add(cpacket.getHitResult().getBlockPos());
+                    if (!this.placedCrystals.contains(placed)) {
+                        this.placedCrystals.add(placed.immutable());
+                    }
                 }
             }
         }
@@ -875,25 +935,42 @@ public class AutoCrystal extends Module
 
     @EventTarget
     public void onRecieve(final EventReceivePacket event) {
-        if (event.getPacket() instanceof ClientboundSoundPacket && this.nodesync.getValue()) {
-            final ClientboundSoundPacket packet = (ClientboundSoundPacket)event.getPacket();
-            if (packet.getSource() == SoundSource.BLOCKS && packet.getSound() == SoundEvents.GENERIC_EXPLODE) {
-                for (final Entity e : AutoCrystal.mc.level.entitiesForRendering()) {
-                    if (e instanceof EndCrystal) {
-                        if (e.distanceToSqr(packet.getX(), packet.getY(), packet.getZ()) <= 36.0) {
-                            e.discard();
-                        }
-                    }
-                }
-                this.placedCrystals.removeIf(p_Pos -> p_Pos.distToCenterSqr((int)packet.getX(), (int)packet.getY(), (int)packet.getZ()) <= 36.0);
+        if (!(event.getPacket() instanceof ClientboundSoundPacket) || !this.nodesync.getValue()) {
+            return;
+        }
+        final ClientboundSoundPacket packet = (ClientboundSoundPacket)event.getPacket();
+        if (packet.getSource() != SoundSource.BLOCKS || packet.getSound() != SoundEvents.GENERIC_EXPLODE) {
+            return;
+        }
+        final double x = packet.getX();
+        final double y = packet.getY();
+        final double z = packet.getZ();
+        AutoCrystal.mc.execute(() -> this.handleExplosion(x, y, z));
+    }
+
+    private void handleExplosion(final double x, final double y, final double z) {
+        if (AutoCrystal.mc.level == null) {
+            return;
+        }
+        final List<Entity> exploded = new ArrayList<Entity>();
+        for (final Entity e : AutoCrystal.mc.level.entitiesForRendering()) {
+            if (e instanceof EndCrystal && e.distanceToSqr(x, y, z) <= 36.0) {
+                exploded.add(e);
             }
+        }
+        for (final Entity e : exploded) {
+            e.discard();
+        }
+        synchronized (this.placedCrystals) {
+            this.placedCrystals.removeIf(pos -> pos.distToCenterSqr(x, y, z) <= 36.0);
         }
     }
 
     @Override
     public void onEnable() {
-        Xulu.EVENT_MANAGER.register(this);
         this.isActive = false;
+        this.trackedLevel = null;
+        this.resetState();
         if (this.chat.getValue() && AutoCrystal.mc.player != null) {
             if (this.watermark.getValue()) {
                 Command.sendChatMessage(ColorTextUtils.getColor(this.echatcolor.getValue()) + "AutoCrystal ON");
@@ -906,17 +983,23 @@ public class AutoCrystal extends Module
 
     @Override
     public void onDisable() {
-        Xulu.EVENT_MANAGER.unregister(this);
         PvPInfo.place = false;
         PvPInfo.attack = false;
         this.render = null;
         this.renderEnt = null;
+        this.renderOld = null;
         resetRotation();
         this.isActive = false;
+        if (this.oldSlot != -1) {
+            this.setSlot(this.oldSlot);
+            this.oldSlot = -1;
+        }
         this.ignoreList.clear();
         this.attemptMap.clear();
         this.retryMap.clear();
-        if (this.chat.getValue()) {
+        this.placedCrystals.clear();
+        this.fadeList.clear();
+        if (this.chat.getValue() && AutoCrystal.mc.player != null) {
             if (this.watermark.getValue()) {
                 Command.sendChatMessage(ColorTextUtils.getColor(this.dchatcolor.getValue()) + "AutoCrystal OFF");
             }
@@ -927,6 +1010,19 @@ public class AutoCrystal extends Module
     }
 
     private boolean shouldPause() {
-        return (Xulu.MODULE_MANAGER.getModule(Surround.class).isToggled() && Surround.isExposed() && Xulu.MODULE_MANAGER.getModuleT(Surround.class).findObiInHotbar() != -1) || Xulu.MODULE_MANAGER.getModule(AutoTrap.class).isToggled() || Xulu.MODULE_MANAGER.getModule(HoleFill.class).isToggled() || (Xulu.MODULE_MANAGER.getModule(HoleBlocker.class).isToggled() && HoleBlocker.isExposed() && Xulu.MODULE_MANAGER.getModuleT(Surround.class).findObiInHotbar() != -1);
+        final Surround surround = Xulu.MODULE_MANAGER.getModuleT(Surround.class);
+        if (surround != null && surround.isToggled() && Surround.isExposed() && surround.findObiInHotbar() != -1) {
+            return true;
+        }
+        final AutoTrap autoTrap = Xulu.MODULE_MANAGER.getModuleT(AutoTrap.class);
+        if (autoTrap != null && autoTrap.isToggled()) {
+            return true;
+        }
+        final HoleFill holeFill = Xulu.MODULE_MANAGER.getModuleT(HoleFill.class);
+        if (holeFill != null && holeFill.isToggled()) {
+            return true;
+        }
+        final HoleBlocker holeBlocker = Xulu.MODULE_MANAGER.getModuleT(HoleBlocker.class);
+        return holeBlocker != null && holeBlocker.isToggled() && HoleBlocker.isExposed() && surround != null && surround.findObiInHotbar() != -1;
     }
 }

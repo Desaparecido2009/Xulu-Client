@@ -7,6 +7,7 @@ import com.elementars.eclient.event.events.EventKey;
 import com.elementars.eclient.event.events.EventUpdate;
 import com.elementars.eclient.event.events.LocalPlayerUpdateEvent;
 import com.elementars.eclient.font.CFontManager;
+import com.elementars.eclient.font.XFontRenderer;
 import com.elementars.eclient.font.custom.CustomFont;
 import com.elementars.eclient.guirewrite.HUD;
 import com.elementars.eclient.module.Module;
@@ -14,13 +15,16 @@ import com.elementars.eclient.module.ModuleManager;
 import com.elementars.eclient.module.core.Global;
 import com.elementars.eclient.util.ColorTextUtils;
 import com.elementars.eclient.util.ColorUtils;
+import com.elementars.eclient.util.LagCompensator;
 import com.elementars.eclient.util.LagUtil;
 import com.elementars.eclient.util.RainbowUtils;
 import com.elementars.eclient.util.TaskScheduler;
 import com.elementars.eclient.util.TargetPlayers;
 import com.elementars.eclient.util.Wrapper;
 import com.mojang.blaze3d.vertex.PoseStack;
+import dev.xulu.newgui.NewGUI;
 import dev.xulu.newgui.util.ColorUtil;
+import dev.xulu.settings.ConfigManager;
 import dev.xulu.settings.ValueManager;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -28,6 +32,7 @@ import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.client.event.ClientChatEvent;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.client.event.RenderLevelLastEvent;
@@ -38,6 +43,8 @@ import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.lwjgl.glfw.GLFW;
 
 import java.awt.Color;
@@ -56,6 +63,7 @@ public class Xulu
     public static boolean CustomFont;
     public static int rgb;
     public static CFontManager cFontRenderer;
+    public static NewGUI newGUI;
     public static HUD hud;
     public static Xulu INSTANCE;
     public static com.elementars.eclient.util.GLSLSandboxShader backgroundShader;
@@ -87,16 +95,28 @@ public class Xulu
         MODULE_MANAGER.init();
         COMMAND_MANAGER.init();
         cFontRenderer = new CFontManager();
+        LagCompensator.INSTANCE = new LagCompensator();
         LagUtil.INSTANCE = new LagUtil();
         rgb = Color.HSBtoRGB(0.01f, Global.rainbowSaturation.getValue() / 255.0f, Global.rainbowLightness.getValue() / 255.0f);
         new com.elementars.eclient.font.FontInit().initFonts();
+        Wrapper.getFileManager().loadFriends();
+        Wrapper.getFileManager().loadEnemies();
+        FMLJavaModLoadingContext.get().getModEventBus().addListener(this::onClientSetup);
+        MinecraftForge.EVENT_BUS.register(this);
+    }
+
+    private void onClientSetup(final FMLClientSetupEvent event) {
+        event.enqueueWork(this::initClientGui);
+    }
+
+    private void initClientGui() {
+        Xulu.newGUI = new NewGUI();
         Xulu.hud = new HUD();
         HUD.registerElements();
         Xulu.hud.refreshPanel();
-        Wrapper.getFileManager().loadFriends();
-        Wrapper.getFileManager().loadEnemies();
         Wrapper.getFileManager().loadHUD();
-        MinecraftForge.EVENT_BUS.register(this);
+        Wrapper.getFileManager().loadNewGui();
+        ConfigManager.load("main");
     }
 
     @SubscribeEvent
@@ -204,6 +224,16 @@ public class Xulu
     }
 
     @SubscribeEvent
+    public void onClientLoggedIn(final ClientPlayerNetworkEvent.LoggedInEvent event) {
+        ConfigManager.applyPending();
+    }
+
+    @SubscribeEvent
+    public void onClientLoggedOut(final ClientPlayerNetworkEvent.LoggedOutEvent event) {
+        ConfigManager.saveMain();
+    }
+
+    @SubscribeEvent
     public void onClientChat(final ClientChatEvent event) {
         final String message = event.getMessage();
         if (message.startsWith(Command.getPrefix())) {
@@ -274,6 +304,28 @@ public class Xulu
                 return;
             }
             CFontManager.customFont = new CustomFont(new Font(getCorrectFont(stringIn), 0, size), true, false);
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void setXdolfFontRenderer(final String stringIn, final int size) {
+        try {
+            if (getCorrectFont(stringIn) == null) {
+                Command.sendChatMessage("Invalid font!");
+                return;
+            }
+            CFontManager.xFontRenderer = new XFontRenderer(new Font(getCorrectFont(stringIn), 0, size), true, 8);
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void setXdolfFontRendererDefault() {
+        try {
+            CFontManager.xFontRenderer = new XFontRenderer(new Font("Verdana", 0, 36), true, 8);
         }
         catch (Exception e) {
             e.printStackTrace();

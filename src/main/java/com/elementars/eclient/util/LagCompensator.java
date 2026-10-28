@@ -1,15 +1,60 @@
 package com.elementars.eclient.util;
 
+import com.elementars.eclient.Xulu;
+import com.elementars.eclient.event.EventTarget;
+import com.elementars.eclient.event.events.EventReceivePacket;
+import java.util.Arrays;
+import net.minecraft.network.protocol.game.ClientboundSetTimePacket;
+import net.minecraft.util.Mth;
+
 public class LagCompensator
 {
     public static LagCompensator INSTANCE;
-    private float time;
+    private final float[] tickRates;
+    private int nextIndex;
+    private long timeLastTimeUpdate;
 
     public LagCompensator() {
-        this.time = 50.0f;
+        this.tickRates = new float[20];
+        this.nextIndex = 0;
+        Xulu.EVENT_MANAGER.register(this);
+        this.reset();
     }
 
-    public float getTime() {
-        return this.time;
+    @EventTarget
+    public void onPacket(final EventReceivePacket event) {
+        if (event.getPacket() instanceof ClientboundSetTimePacket) {
+            this.onTimeUpdate();
+        }
+    }
+
+    public void reset() {
+        this.nextIndex = 0;
+        this.timeLastTimeUpdate = -1L;
+        Arrays.fill(this.tickRates, 0.0f);
+    }
+
+    public float getTickRate() {
+        float numTicks = 0.0f;
+        float sumTickRates = 0.0f;
+        for (final float tickRate : this.tickRates) {
+            if (tickRate > 0.0f) {
+                sumTickRates += tickRate;
+                ++numTicks;
+            }
+        }
+        if (numTicks == 0.0f) {
+            return 20.0f;
+        }
+        return Mth.clamp(sumTickRates / numTicks, 0.0f, 20.0f);
+    }
+
+    public void onTimeUpdate() {
+        if (this.timeLastTimeUpdate != -1L) {
+            final float timeElapsed = (System.currentTimeMillis() - this.timeLastTimeUpdate) / 1000.0f;
+            this.tickRates[this.nextIndex % this.tickRates.length] = Mth.clamp(20.0f / timeElapsed, 0.0f, 20.0f);
+            ++this.nextIndex;
+        }
+        this.timeLastTimeUpdate = System.currentTimeMillis();
     }
 }

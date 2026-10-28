@@ -157,7 +157,8 @@ public class AutoTrap extends Module
                 else if (this.mode.getValue().equalsIgnoreCase("Outline")) {
                     final BlockState state2 = AutoTrap.mc.level.getBlockState(pos);
                     final Vec3 interp2 = event.getRenderPos();
-                    XuluTessellator.drawBoundingBox(state2.getShape(AutoTrap.mc.level, pos).bounds().move(pos).inflate(0.0020000000949949026).move(-interp2.x, -interp2.y, -interp2.z), 1.5f, color1, color2, color3, this.alpha.getValue());
+                    final AABB box2 = BlockInteractionHelper.getBlockBounds(state2, AutoTrap.mc.level, pos).inflate(0.0020000000949949026).move(-interp2.x, -interp2.y, -interp2.z);
+                    XuluTessellator.drawBoundingBox(box2, 1.5f, color1, color2, color3, this.alpha.getValue());
                 }
                 else {
                     if (!this.mode.getValue().equalsIgnoreCase("Full")) {
@@ -165,7 +166,8 @@ public class AutoTrap extends Module
                     }
                     final BlockState state3 = AutoTrap.mc.level.getBlockState(pos);
                     final Vec3 interp3 = event.getRenderPos();
-                    XuluTessellator.drawFullBox(state3.getShape(AutoTrap.mc.level, pos).bounds().move(pos).inflate(0.0020000000949949026).move(-interp3.x, -interp3.y, -interp3.z), pos, 1.5f, color1, color2, color3, this.alpha.getValue(), this.oalpha.getValue());
+                    final AABB box3 = BlockInteractionHelper.getBlockBounds(state3, AutoTrap.mc.level, pos).inflate(0.0020000000949949026).move(-interp3.x, -interp3.y, -interp3.z);
+                    XuluTessellator.drawFullBox(box3, pos, 1.5f, color1, color2, color3, this.alpha.getValue(), this.oalpha.getValue());
                 }
             }
         }

@@ -78,4 +78,22 @@ public class Element extends Module
     public void setY(final double y) {
         this.y = y;
     }
+
+    protected boolean isRightHalf() {
+        if (Element.mc.getWindow() == null) {
+            return false;
+        }
+        return this.x + this.width / 2.0 > Element.mc.getWindow().getGuiScaledWidth() / 2.0;
+    }
+
+    protected boolean isBottomHalf() {
+        if (Element.mc.getWindow() == null) {
+            return false;
+        }
+        return this.y + this.height / 2.0 > Element.mc.getWindow().getGuiScaledHeight() / 2.0;
+    }
+
+    protected double getTextX(final double textWidth) {
+        return this.isRightHalf() ? this.x + this.width - 1.0 - textWidth : this.x + 1.0;
+    }
 }

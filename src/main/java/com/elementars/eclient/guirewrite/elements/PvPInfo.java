@@ -4,7 +4,6 @@ import com.elementars.eclient.Xulu;
 import com.elementars.eclient.guirewrite.Element;
 import com.elementars.eclient.module.core.Global;
 import com.elementars.eclient.util.ColorUtils;
-import com.elementars.eclient.util.ListHelper;
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.xulu.newgui.util.ColorUtil;
 import dev.xulu.settings.Value;
@@ -46,32 +45,47 @@ public class PvPInfo extends Element
     }
 
     @Override
+    public void onEnable() {
+        this.width = 80.0;
+        this.height = 80.0;
+        super.onEnable();
+    }
+
+    @Override
     public void onRender() {
         this.checkSurround();
-        float yCount = (float)this.y;
         int color = ColorUtil.getClickGUIColor().getRGB();
         int totems = PvPInfo.mc.player.getInventory().items.stream().filter(itemStack -> itemStack.getItem() == Items.TOTEM_OF_UNDYING).mapToInt(ItemStack::getCount).sum();
         if (PvPInfo.mc.player.getOffhandItem().getItem() == Items.TOTEM_OF_UNDYING) {
             ++totems;
         }
         final String[] pvpinfo = { "ATT: " + this.getFromBoolean(PvPInfo.attack), "PLC: " + this.getFromBoolean(PvPInfo.place), "FOB: " + this.getFromBoolean(PvPInfo.surround), "PING: " + this.getPing((PvPInfo.mc.getConnection() != null && PvPInfo.mc.player != null && PvPInfo.mc.getConnection().getPlayerInfo(PvPInfo.mc.player.getUUID()) != null) ? PvPInfo.mc.getConnection().getPlayerInfo(PvPInfo.mc.player.getUUID()).getLatency() : -1), "TOTEMS: " + this.getTotems(totems), "AT: " + this.getAutoTrap(), "SU: " + this.getSurround(), "CA: " + this.getCaura() };
-        this.width = PvPInfo.fontRenderer.width(ListHelper.longest(pvpinfo)) + 2;
-        this.height = (PvPInfo.fontRenderer.lineHeight + 1) * pvpinfo.length + 1;
+        int maxWidth = 0;
+        for (final String line : pvpinfo) {
+            maxWidth = Math.max(maxWidth, this.getStringWidth(line));
+        }
+        this.width = Math.max(this.width, maxWidth + 2.0);
+        this.height = Math.max(this.height, pvpinfo.length * 10.0 + 1.0);
+        final boolean rightAligned = this.isRightHalf();
+        final boolean bottomAligned = this.isBottomHalf();
+        float yCount = bottomAligned ? (float)(this.y + this.height - pvpinfo.length * 10.0 + 1.0) : (float)this.y + 1.0f;
         if (this.rainbow.getValue()) {
             color = new Color(Xulu.Rainbow.r, Xulu.Rainbow.g, Xulu.Rainbow.b).getRGB();
         }
-        if (Xulu.CustomFont) {
-            for (final String s : pvpinfo) {
-                Xulu.cFontRenderer.drawStringWithShadow(s, this.x + 1.0, yCount + 1.0f, ColorUtils.changeAlpha(color, Global.hudAlpha.getValue()));
-                yCount += 10.0f;
+        for (final String s : pvpinfo) {
+            final double textX = rightAligned ? this.x + this.width - 1.0 - this.getStringWidth(s) : this.x + 1.0;
+            if (Xulu.CustomFont) {
+                Xulu.cFontRenderer.drawStringWithShadow(s, (float)textX, yCount, ColorUtils.changeAlpha(color, Global.hudAlpha.getValue()));
             }
-        }
-        else {
-            for (final String s : pvpinfo) {
-                PvPInfo.fontRenderer.drawShadow(new PoseStack(), s, (float)this.x + 1.0f, yCount + 1.0f, ColorUtils.changeAlpha(color, Global.hudAlpha.getValue()));
-                yCount += 10.0f;
+            else {
+                PvPInfo.fontRenderer.drawShadow(new PoseStack(), s, (float)textX, yCount, ColorUtils.changeAlpha(color, Global.hudAlpha.getValue()));
             }
+            yCount += 10.0f;
         }
+    }
+
+    private int getStringWidth(final String text) {
+        return Xulu.CustomFont ? Xulu.cFontRenderer.getStringWidth(text) : PvPInfo.fontRenderer.width(text);
     }
 
     private String getTotems(final int totems) {

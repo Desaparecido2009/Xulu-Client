@@ -14,6 +14,8 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.world.entity.player.Player;
 
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.List;
 
 public class TextRadar extends Element
 {
@@ -40,7 +42,7 @@ public class TextRadar extends Element
         if (TextRadar.mc.player == null || TextRadar.mc.level == null) {
             return;
         }
-        float yCount = (float)this.y;
+        final List<String> lines = new ArrayList<String>();
         for (final Player entityPlayer : TextRadar.mc.level.players()) {
             if (entityPlayer.getName().getString().equals(TextRadar.mc.player.getName().getString())) {
                 continue;
@@ -52,13 +54,30 @@ public class TextRadar extends Element
             if (this.pops.getValue() && PopCounter.INSTANCE != null && PopCounter.INSTANCE.popMap.containsKey(entityPlayer)) {
                 line = line + " " + ChatFormatting.DARK_RED + "-" + PopCounter.INSTANCE.popMap.get(entityPlayer);
             }
+            lines.add(line);
+        }
+        int maxWidth = 0;
+        for (final String line : lines) {
+            maxWidth = Math.max(maxWidth, this.getStringWidth(line));
+        }
+        this.width = Math.max(80.0, maxWidth + 2.0);
+        this.height = Math.max(80.0, lines.size() * 10.0 + 1.0);
+        final boolean rightAligned = this.isRightHalf();
+        final boolean bottomAligned = this.isBottomHalf();
+        float yCount = bottomAligned ? (float)(this.y + this.height - lines.size() * 10.0) : (float)this.y;
+        for (final String line : lines) {
+            final double textX = rightAligned ? this.x + this.width - 1.0 - this.getStringWidth(line) : this.x;
             if (Xulu.CustomFont) {
-                Xulu.cFontRenderer.drawStringWithShadow(line, (float)this.x, yCount, ColorUtils.changeAlpha(ColorUtils.Colors.WHITE, Global.hudAlpha.getValue()));
+                Xulu.cFontRenderer.drawStringWithShadow(line, (float)textX, yCount, ColorUtils.changeAlpha(ColorUtils.Colors.WHITE, Global.hudAlpha.getValue()));
             }
             else {
-                TextRadar.fontRenderer.drawShadow(new PoseStack(), line, (float)this.x, yCount, ColorUtils.changeAlpha(ColorUtils.Colors.WHITE, Global.hudAlpha.getValue()));
+                TextRadar.fontRenderer.drawShadow(new PoseStack(), line, (float)textX, yCount, ColorUtils.changeAlpha(ColorUtils.Colors.WHITE, Global.hudAlpha.getValue()));
             }
             yCount += 10.0f;
         }
+    }
+
+    private int getStringWidth(final String text) {
+        return Xulu.CustomFont ? Xulu.cFontRenderer.getStringWidth(text) : TextRadar.fontRenderer.width(text);
     }
 }
