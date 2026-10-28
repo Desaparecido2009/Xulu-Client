@@ -3,6 +3,10 @@
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
+# Backups locales (no publicar)
+gradle.properties.txt
+gradle/wrapper/gradle-wrapper.properties.txt
+
 # Runtime
 run/
 Xulu/
