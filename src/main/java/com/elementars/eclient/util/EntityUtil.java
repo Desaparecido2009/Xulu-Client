@@ -26,6 +26,10 @@ public class EntityUtil
         return e instanceof LivingEntity;
     }
 
+    public static boolean isFakeLocalPlayer(final Entity entity) {
+        return entity != null && entity.getId() == -100 && Wrapper.getPlayer() != entity;
+    }
+
     public static boolean isMobAggressive(final Entity entity) {
         if (entity instanceof ZombifiedPiglin) {
             if (((NeutralMob)entity).isAngry()) {

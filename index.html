@@ -161,51 +161,71 @@ footer p{margin:.5rem 0}
   <div class="wrap">
     <h2>Estado del porteo</h2>
     <div class="total">
-      <strong>62 / 156</strong>
-      <span>módulos y elementos originales ya porteados</span>
+      <strong>65</strong>
+      <span>entradas registradas (módulos y elementos HUD)</span>
     </div>
-    <div class="bar" role="img" aria-label="62 de 156 originales porteados"><i style="width:39.7%"></i></div>
-    <p style="color:var(--muted)">66 entradas registradas en total (módulos, elementos de HUD y HudEditor): 62 originales y 4 nuevas que no existen en Xulu 1.5.2. Quedan 94 originales pendientes. <strong style="color:var(--warn)">Persistencia de settings: pendiente.</strong> Al reiniciar se pierden los valores de los módulos y el estado toggled.</p>
-
+    <p style="color:var(--muted)">47 módulos + 18 elementos HUD. <strong style="color:var(--warn)">Persistencia de settings: pendiente.</strong> Al reiniciar se pierden los valores y el estado toggled.</p>
     <div class="tablewrap">
     <table class="cats">
-      <thead><tr><th>Categoría</th><th>Progreso</th><th>Registrados</th><th>Originales</th><th>Nuevos</th><th>Pendientes</th></tr></thead>
+      <thead><tr><th>Categoría</th><th>Registrados</th></tr></thead>
       <tbody>
-        <tr><td>Core</td><td><div class="bar"><i style="width:100%"></i></div></td><td>4</td><td>3</td><td>1</td><td>0</td></tr>
-        <tr><td>Combat</td><td><div class="bar"><i style="width:43.3%"></i></div></td><td>15</td><td>13</td><td>2</td><td>17</td></tr>
-        <tr><td>Movement</td><td><div class="bar"><i style="width:53.3%"></i></div></td><td>8</td><td>8</td><td>0</td><td>7</td></tr>
-        <tr><td>Player</td><td><div class="bar"><i style="width:28.6%"></i></div></td><td>4</td><td>4</td><td>0</td><td>10</td></tr>
-        <tr><td>Render</td><td><div class="bar"><i style="width:32.5%"></i></div></td><td>13</td><td>13</td><td>0</td><td>27</td></tr>
-        <tr><td>Misc</td><td><div class="bar"><i style="width:10.7%"></i></div></td><td>3</td><td>3</td><td>0</td><td>25</td></tr>
-        <tr><td>HUD</td><td><div class="bar"><i style="width:69.2%"></i></div></td><td>19</td><td>18</td><td>1</td><td>8</td></tr>
+        <tr><td>Core</td><td>4</td></tr>
+        <tr><td>Combat</td><td>15</td></tr>
+        <tr><td>Movement</td><td>8</td></tr>
+        <tr><td>Player</td><td>4</td></tr>
+        <tr><td>Render</td><td>13</td></tr>
+        <tr><td>Misc</td><td>3</td></tr>
+        <tr><td>HUD</td><td>18</td></tr>
       </tbody>
-      <tfoot><tr><td>Total</td><td></td><td>66</td><td>62</td><td>4</td><td>94</td></tr></tfoot>
+      <tfoot><tr><td>Total</td><td>65</td></tr></tfoot>
     </table>
     </div>
-    <p style="color:var(--muted);font-size:.9rem">«Originales» cuenta lo que existe en Xulu 1.5.2 (en HUD incluye HudEditor). Los nuevos son AutoCity, PearlPhase, GuiBackgroundShader y Position. La barra de cada categoría es originales porteados sobre originales totales.</p>
-
-    <h3>Mapa de módulos</h3>
+    <h3>Módulos porteado</h3>
     <div class="legend">
-      <span><span class="chip">Porteado</span></span>
-      <span><span class="chip new">Nuevo</span></span>
-      <span><span class="chip pend">Pendiente</span></span>
+      <span><span class="chip">Módulos</span></span>
+      <span><span class="chip new">Nuevos</span></span>
     </div>
-    <div id="wall"></div>
 
+    <div class="cat">
+      <h3>Core <small>4 módulos</small></h3>
+      <span class="chip">Global</span><span class="chip">CustomFont</span><span class="chip">TitleScreenShader</span><span class="chip new">GuiBackgroundShader</span>
+    </div>
+    <div class="cat">
+      <h3>Combat <small>15 módulos</small></h3>
+      <span class="chip">Aura</span><span class="chip">AutoArmor</span><span class="chip">AutoCrystal</span><span class="chip">AutoTotem</span><span class="chip">AutoTrap</span><span class="chip">Criticals</span><span class="chip">EXPFast</span><span class="chip">FastBow</span><span class="chip">HoleBlocker</span><span class="chip">HoleFill</span><span class="chip">Offhand</span><span class="chip">PearlPhase</span><span class="chip">PopCounter</span><span class="chip">Surround</span><span class="chip new">AutoCity</span>
+    </div>
+    <div class="cat">
+      <h3>Movement <small>8 módulos</small></h3>
+      <span class="chip">ElytraFly</span><span class="chip">FastSwim</span><span class="chip">Flight</span><span class="chip">GuiMove</span><span class="chip">NoSlowDown</span><span class="chip">Sprint</span><span class="chip">Scaffold</span><span class="chip">Velocity</span>
+    </div>
+    <div class="cat">
+      <h3>Player <small>4 módulos</small></h3>
+      <span class="chip">AntiVoid</span><span class="chip">NoBreakAnimation</span><span class="chip">Speedmine</span><span class="chip">XCarry</span>
+    </div>
+    <div class="cat">
+      <h3>Render <small>13 módulos</small></h3>
+      <span class="chip">AntiFog</span><span class="chip">BreakESP</span><span class="chip">Chams</span><span class="chip">ExeterGui</span><span class="chip">FullBright</span><span class="chip">HoleESP</span><span class="chip">ItemESP</span><span class="chip">NewGui</span><span class="chip">NoHurtCam</span><span class="chip">ShulkerPreview</span><span class="chip">Skeleton</span><span class="chip">ToolTips</span><span class="chip">VoidESP</span>
+    </div>
+    <div class="cat">
+      <h3>Misc <small>3 módulos</small></h3>
+      <span class="chip">FakeVanilla</span><span class="chip">FovSlider</span><span class="chip">Time</span>
+    </div>
+    <div class="cat">
+      <h3>HUD <small>18 elementos</small></h3>
+      <span class="chip">HudEditor</span><span class="chip">PvPInfo</span><span class="chip">TextRadar</span><span class="chip">FeatureList</span><span class="chip">Watermark</span><span class="chip">Potions</span><span class="chip">Totems</span><span class="chip">Obsidian</span><span class="chip">Crystals</span><span class="chip">Gapples</span><span class="chip">Exp</span><span class="chip">InvPreview</span><span class="chip">CraftingPreview</span><span class="chip">HoleHud</span><span class="chip">Info</span><span class="chip">Armor</span><span class="chip">Logo</span><span class="chip">Target</span>
+    </div>
     <h3>Últimos avances</h3>
     <ul>
-      <li><strong>HoleESP</strong> portado completo: 20 settings, modos SOLID/OUTLINE/FULL/CUBOID/INDICATOR, frustum culling, hideOwn y render con XuluTessellator.</li>
-      <li><strong>XuluTessellator:</strong> nuevos drawFullBox2, drawIndicator y drawBoundingBoxFace adaptados a 1.18.2.</li>
       <li><strong>AutoCity</strong> (nuevo): minado por daño, modos Packet/Legit, InstantRebreak, switch silencioso al pico, rotación, walls, feet/head y render.</li>
-      <li><strong>Speedmine:</strong> modos Packet, Damage e Instant; render, DoubleBreak, WebSwitch, NoDelay, NoBreakAnim, NoSwing y NoTrace.</li>
-      <li><strong>Aura:</strong> jugadores, animales, mobs, rango, wait, walls, rotación silenciosa y cambio a espada 32k.</li>
-      <li><strong>AutoCrystal:</strong> City Bridge, Fast Mode unificado, fix de ConcurrentModificationException, bounds de bloques, canPlaceCrystal con cave/void air y sincronización del slot.</li>
-      <li><strong>ToolTips:</strong> depth test corregido.</li>
+      <li><strong>Speedmine</strong>: modos Packet, Damage e Instant; render, DoubleBreak, WebSwitch, NoDelay, NoBreakAnim, NoSwing y NoTrace.</li>
+      <li><strong>Aura</strong>: jugadores, animales, mobs, rango, wait, walls, rotación silenciosa y cambio a espada 32k.</li>
+      <li><strong>AutoCrystal</strong>: City Bridge, Fast Mode unificado, fix de ConcurrentModificationException, bounds de bloques, canPlaceCrystal con cave/void air y sincronización del slot.</li>
+      <li><strong>HoleESP</strong>: 20 settings, modos SOLID/OUTLINE/FULL/CUBOID/INDICATOR, frustum culling, hideOwn y render con XuluTessellator.</li>
+      <li><strong>ToolTips</strong>: depth test corregido.</li>
+      <li><strong>GuiMove</strong>: fix con MixinKeyboardInput para input con GUI abierta.</li>
+      <li><strong>HUD Editor</strong>: alineación automática por cuadrante, ejes visuales, frame centrado al activar.</li>
     </ul>
     <p>El detalle completo está en el <a href="https://discord.gg/uUxbA4RAaS">Discord oficial</a> y en el README del repositorio.</p>
-
-    <h3>Próximos objetivos</h3>
-    <p>StorageESP, BlockHighlight, Waypoints, Nametags y LogoutSpots. El orden puede cambiar según las pruebas, los reportes y las prioridades del equipo.</p>
   </div>
 </section>
 
@@ -394,19 +414,23 @@ const data = {
   "Render":   {ok:["AntiFog","BreakESP","Chams","ExeterGui","FullBright","HoleESP","ItemESP","NewGui","NoHurtCam","ShulkerPreview","Skeleton","ToolTips","VoidESP"], nw:[],
               pend:["Arrows","BlockHighlight","BossStack","Cape","Chat","ChunkFinder","Compass","ESP","EnchantColor","ExtraTab","EyeFinder","HellenKeller","ImageESP","LogoutSpots","Nametags","NoRender","OffhandSwing","OutlineESP","Pathfind","Search","SecretShaders","StorageESP","Tracers","Trajectories","ViewmodelChanger","Waypoints","Xray"]},
   "Misc":     {ok:["FakeVanilla","FovSlider","Time"], nw:[],
-              pend:["Announcer","AntiDeathScreen","AntiSound","AntiSpam","Australia","AutoQMain","AutoWither","Avoid","CameraClip","ColorSign","CoordLogger","CrashExploit","CustomChat","DonkeyAlert","FakePlayer","HopperNuker","LiquidInteract","MCF","MobOwner","NoEntityTrace","NoPacketKick","PortalChat","SkinFlicker","Timer","VisualRange"]},
-  "HUD":      {ok:["HudEditor","PvPInfo","TextRadar","FeatureList","Watermark","Potions","Totems","Obsidian","Crystals","Gapples","Exp","InvPreview","CraftingPreview","HoleHud","Info","Armor","Logo","Target"], nw:["Position"],
-              pend:["GodInfo","OldName","Player","StickyNotes","TextNotes","TheGoons","Welcome","WelcomeNotes"]}
+const data = {
+  "Core":     {mods:["Global","CustomFont","TitleScreenShader","GuiBackgroundShader"]},
+  "Combat":   {mods:["Aura","AutoArmor","AutoCity","AutoCrystal","AutoTotem","AutoTrap","Criticals","EXPFast","FastBow","HoleBlocker","HoleFill","Offhand","PearlPhase","PopCounter","Surround"]},
+  "Movement": {mods:["ElytraFly","FastSwim","Flight","GuiMove","NoSlowDown","Sprint","Scaffold","Velocity"]},
+  "Player":   {mods:["AntiVoid","NoBreakAnimation","Speedmine","XCarry"]},
+  "Render":   {mods:["AntiFog","BreakESP","Chams","ExeterGui","FullBright","HoleESP","ItemESP","NewGui","NoHurtCam","ShulkerPreview","Skeleton","ToolTips","VoidESP"]},
+  "Misc":     {mods:["FakeVanilla","FovSlider","Time"]},
+  "HUD":      {mods:["HudEditor","PvPInfo","TextRadar","FeatureList","Watermark","Potions","Totems","Obsidian","Crystals","Gapples","Exp","InvPreview","CraftingPreview","HoleHud","Info","Armor","Logo","Target"]}
 };
 const wall = document.getElementById("wall");
 const chips = (list, cls) => list.map(n => '<span class="chip ' + cls + '">' + n + '</span>').join("");
 for (const [cat, d] of Object.entries(data)) {
   const el = document.createElement("div");
   el.className = "cat";
-  el.innerHTML = '<h3>' + cat + ' <small>' + (d.ok.length + d.nw.length) + ' registrados, ' + d.pend.length + ' pendientes</small></h3>'
-    + chips(d.ok, "") + chips(d.nw, "new") + chips(d.pend, "pend");
+  el.innerHTML = '<h3>' + cat + ' <small>' + d.mods.length + ' módulos</small></h3>'
+    + chips(d.mods, d.mods.includes("GuiBackgroundShader") || d.mods.includes("AutoCity") || d.mods.includes("PearlPhase") ? "new" : "");
   wall.appendChild(el);
 }
-</script>
 </body>
 </html>
