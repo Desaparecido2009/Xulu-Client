@@ -1,24 +1,26 @@
 package com.elementars.eclient.util;
 
-import java.util.ArrayList;
+import com.elementars.eclient.module.render.LogoutSpots;
 
-public class SpotSet
+import java.util.HashSet;
+import java.util.Set;
+import java.util.function.Predicate;
+
+public class SpotSet extends HashSet<LogoutSpots.LogoutPos>
 {
-    private ArrayList<String> spots;
-
-    public SpotSet() {
-        this.spots = new ArrayList<String>();
-    }
-
-    public void add(final String spot) {
-        this.spots.add(spot);
-    }
-
-    public boolean contains(final String spot) {
-        return this.spots.contains(spot);
-    }
-
-    public void remove(final String spot) {
-        this.spots.remove(spot);
+    public Pair<Boolean, LogoutSpots.LogoutPos> removeIfReturn(final Predicate<? super LogoutSpots.LogoutPos> filter) {
+        final Set<LogoutSpots.LogoutPos> oldlist = new HashSet<LogoutSpots.LogoutPos>(this);
+        final boolean removed = this.removeIf(filter);
+        if (removed) {
+            LogoutSpots.LogoutPos logoutPos = null;
+            for (final LogoutSpots.LogoutPos pos : oldlist) {
+                if (!this.contains(pos)) {
+                    logoutPos = pos;
+                    break;
+                }
+            }
+            return new Pair<Boolean, LogoutSpots.LogoutPos>(true, logoutPos);
+        }
+        return new Pair<Boolean, LogoutSpots.LogoutPos>(false, null);
     }
 }

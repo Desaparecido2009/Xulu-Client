@@ -1,6 +1,6 @@
 package com.elementars.eclient.module.combat;
 
-import com.elementars.eclient.mixin.mixins.MixinMinecraft;
+import com.elementars.eclient.mixin.mixins.AccessorMinecraft;
 import com.elementars.eclient.module.Category;
 import com.elementars.eclient.module.Module;
 import com.elementars.eclient.module.ModuleManager;
@@ -206,7 +206,7 @@ public class HoleBlocker extends Module
         }
         HoleBlocker.mc.gameMode.useItemOn(HoleBlocker.mc.player, HoleBlocker.mc.level, InteractionHand.MAIN_HAND, new BlockHitResult(hitVec, opposite, neighbour, false));
         HoleBlocker.mc.player.swing(InteractionHand.MAIN_HAND);
-        ((MixinMinecraft)HoleBlocker.mc).setRightClickDelay(4);
+        ((AccessorMinecraft)HoleBlocker.mc).setRightClickDelay(4);
         if (this.noGlitchBlocks.getValue() && !HoleBlocker.mc.gameMode.getPlayerMode().equals(GameType.CREATIVE)) {
             HoleBlocker.mc.player.connection.send(new ServerboundPlayerActionPacket(ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, neighbour, opposite));
         }

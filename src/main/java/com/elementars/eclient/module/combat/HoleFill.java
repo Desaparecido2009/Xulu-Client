@@ -3,7 +3,7 @@ package com.elementars.eclient.module.combat;
 import com.elementars.eclient.Xulu;
 import com.elementars.eclient.enemy.Enemies;
 import com.elementars.eclient.friend.Friends;
-import com.elementars.eclient.mixin.mixins.MixinMinecraft;
+import com.elementars.eclient.mixin.mixins.AccessorMinecraft;
 import com.elementars.eclient.module.Category;
 import com.elementars.eclient.module.Module;
 import com.elementars.eclient.util.BlockInteractionHelper;
@@ -171,7 +171,7 @@ public class HoleFill extends Module
                 HoleFill.mc.player.connection.send(new ServerboundPlayerCommandPacket(HoleFill.mc.player, ServerboundPlayerCommandPacket.Action.PRESS_SHIFT_KEY));
                 processRightClickBlock(neighbor, side2, hitVec);
                 HoleFill.mc.player.swing(InteractionHand.MAIN_HAND);
-                ((MixinMinecraft)HoleFill.mc).setRightClickDelay(0);
+                ((AccessorMinecraft)HoleFill.mc).setRightClickDelay(0);
                 HoleFill.mc.player.connection.send(new ServerboundPlayerCommandPacket(HoleFill.mc.player, ServerboundPlayerCommandPacket.Action.RELEASE_SHIFT_KEY));
                 if (Xulu.MODULE_MANAGER.getModuleT(HoleFill.class).noGlitchBlocks.getValue() && !HoleFill.mc.gameMode.getPlayerMode().equals(GameType.CREATIVE)) {
                     HoleFill.mc.player.connection.send(new ServerboundPlayerActionPacket(ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, neighbor, side2));

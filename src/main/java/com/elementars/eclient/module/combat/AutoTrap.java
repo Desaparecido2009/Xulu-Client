@@ -3,7 +3,7 @@ package com.elementars.eclient.module.combat;
 import com.elementars.eclient.Xulu;
 import com.elementars.eclient.event.events.RenderEvent;
 import com.elementars.eclient.friend.Friends;
-import com.elementars.eclient.mixin.mixins.MixinMinecraft;
+import com.elementars.eclient.mixin.mixins.AccessorMinecraft;
 import com.elementars.eclient.module.Category;
 import com.elementars.eclient.module.Module;
 import com.elementars.eclient.module.ModuleManager;
@@ -389,7 +389,7 @@ public class AutoTrap extends Module
         }
         AutoTrap.mc.gameMode.useItemOn(AutoTrap.mc.player, AutoTrap.mc.level, InteractionHand.MAIN_HAND, new BlockHitResult(hitVec, opposite, neighbour, false));
         AutoTrap.mc.player.swing(InteractionHand.MAIN_HAND);
-        ((MixinMinecraft)AutoTrap.mc).setRightClickDelay(4);
+        ((AccessorMinecraft)AutoTrap.mc).setRightClickDelay(4);
         if (this.noGlitchBlocks.getValue() && !AutoTrap.mc.gameMode.getPlayerMode().equals(GameType.CREATIVE)) {
             AutoTrap.mc.player.connection.send(new ServerboundPlayerActionPacket(ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, neighbour, opposite));
         }

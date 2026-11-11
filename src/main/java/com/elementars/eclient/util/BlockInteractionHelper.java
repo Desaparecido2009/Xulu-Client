@@ -1,6 +1,6 @@
 package com.elementars.eclient.util;
 
-import com.elementars.eclient.mixin.mixins.MixinMinecraft;
+import com.elementars.eclient.mixin.mixins.AccessorMinecraft;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -84,7 +84,7 @@ public class BlockInteractionHelper
                     faceVectorPacketInstant(hitVec);
                     processRightClickBlock(neighbor, side2, hitVec);
                     Wrapper.getPlayer().swing(InteractionHand.MAIN_HAND);
-                    ((MixinMinecraft)BlockInteractionHelper.mc).setRightClickDelay(4);
+                    ((AccessorMinecraft)BlockInteractionHelper.mc).setRightClickDelay(4);
                     return;
                 }
             }

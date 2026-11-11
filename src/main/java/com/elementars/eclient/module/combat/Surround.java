@@ -1,7 +1,7 @@
 package com.elementars.eclient.module.combat;
 
 import com.elementars.eclient.Xulu;
-import com.elementars.eclient.mixin.mixins.MixinMinecraft;
+import com.elementars.eclient.mixin.mixins.AccessorMinecraft;
 import com.elementars.eclient.module.Category;
 import com.elementars.eclient.module.Module;
 import com.elementars.eclient.module.ModuleManager;
@@ -319,7 +319,7 @@ public class Surround extends Module
         }
         Surround.mc.gameMode.useItemOn(Surround.mc.player, Surround.mc.level, InteractionHand.MAIN_HAND, new BlockHitResult(hitVec, opposite, neighbour, false));
         Surround.mc.player.swing(InteractionHand.MAIN_HAND);
-        ((MixinMinecraft)Surround.mc).setRightClickDelay(4);
+        ((AccessorMinecraft)Surround.mc).setRightClickDelay(4);
         if (this.noGlitchBlocks.getValue() && !Surround.mc.gameMode.getPlayerMode().equals(GameType.CREATIVE)) {
             Surround.mc.player.connection.send(new ServerboundPlayerActionPacket(ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, neighbour, opposite));
         }

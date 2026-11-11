@@ -1,6 +1,6 @@
 package com.elementars.eclient.module.combat;
 
-import com.elementars.eclient.mixin.mixins.MixinMinecraft;
+import com.elementars.eclient.mixin.mixins.AccessorMinecraft;
 import com.elementars.eclient.module.Category;
 import com.elementars.eclient.module.Module;
 import com.elementars.eclient.util.Wrapper;
@@ -18,7 +18,7 @@ public class EXPFast extends Module
             return;
         }
         if (Wrapper.getMinecraft().player.getMainHandItem().getItem() instanceof ExperienceBottleItem) {
-            ((MixinMinecraft)Wrapper.getMinecraft()).setRightClickDelay(0);
+            ((AccessorMinecraft)Wrapper.getMinecraft()).setRightClickDelay(0);
         }
     }
 }

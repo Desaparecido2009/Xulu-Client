@@ -93,6 +93,7 @@ public class Xulu
         INSTANCE = this;
         ColorTextUtils.initColors();
         MODULE_MANAGER.init();
+        com.elementars.eclient.util.ConnectionUtil.INSTANCE = new com.elementars.eclient.util.ConnectionUtil();
         COMMAND_MANAGER.init();
         cFontRenderer = new CFontManager();
         LagCompensator.INSTANCE = new LagCompensator();

@@ -1,22 +1,29 @@
 package com.elementars.eclient.module.render;
 
-import com.elementars.eclient.event.events.RenderEvent;
 import com.elementars.eclient.friend.Friends;
 import com.elementars.eclient.module.Category;
 import com.elementars.eclient.module.Module;
-import com.elementars.eclient.util.ColorUtils;
-import com.elementars.eclient.util.EntityUtil;
 import com.elementars.eclient.util.HueCycler;
-import com.elementars.eclient.util.XuluTessellator;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
+import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.math.Matrix4f;
+import com.mojang.math.Vector3f;
 import dev.xulu.settings.Value;
-import java.awt.Color;
+import net.minecraft.client.Camera;
 import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.client.event.RenderLevelLastEvent;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 public class Tracers extends Module
 {
@@ -44,96 +51,125 @@ public class Tracers extends Module
     }
 
     @Override
+    public void onEnable() {
+        MinecraftForge.EVENT_BUS.register(this);
+    }
+
+    @Override
+    public void onDisable() {
+        MinecraftForge.EVENT_BUS.unregister(this);
+    }
+
+    @Override
     public void onUpdate() {
         this.cycler.next();
     }
 
-    @Override
-    public void onWorldRender(final RenderEvent event) {
+    @SubscribeEvent
+    public void onWorldLast(final RenderLevelLastEvent event) {
         if (Tracers.mc.level == null || Tracers.mc.player == null) {
             return;
         }
+        final float pt = event.getPartialTick();
+        final Camera camera = Tracers.mc.gameRenderer.getMainCamera();
+        final Vec3 cam = camera.getPosition();
+
+        final PoseStack poseStack = new PoseStack();
+        poseStack.mulPose(Vector3f.XP.rotationDegrees(camera.getXRot()));
+        poseStack.mulPose(Vector3f.YP.rotationDegrees(camera.getYRot() + 180.0f));
+        final Matrix4f m = poseStack.last().pose();
+
+        // Punto de inicio: 1 bloque delante de la cámara (relativo a la cámara)
+        final Vec3 look = Vec3.directionFromRotation(camera.getXRot(), camera.getYRot());
+        final float sx = (float)look.x;
+        final float sy = (float)look.y;
+        final float sz = (float)look.z;
+
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.disableTexture();
+        RenderSystem.disableDepthTest();
+        RenderSystem.setShader(GameRenderer::getPositionColorShader);
+        RenderSystem.lineWidth(1.5f);
+
+        final Tesselator tesselator = Tesselator.getInstance();
+        final BufferBuilder buf = tesselator.getBuilder();
+        buf.begin(VertexFormat.Mode.DEBUG_LINES, DefaultVertexFormat.POSITION_COLOR);
+        boolean any = false;
+        final float alpha = this.opacity.getValue();
+
         for (final Entity entity : Tracers.mc.level.entitiesForRendering()) {
-            if (!EntityUtil.isLiving(entity) || EntityUtil.isFakeLocalPlayer(entity)) {
+            if (entity == Tracers.mc.player || !(entity instanceof LivingEntity) || !entity.isAlive()) {
                 continue;
             }
             if (entity instanceof Player) {
-                if (!this.players.getValue() || Tracers.mc.player == entity) {
+                if (!this.players.getValue()) {
                     continue;
                 }
             }
-            else if (!(EntityUtil.isPassive(entity) ? this.animals.getValue() : this.mobs.getValue())) {
+            else if (entity instanceof Enemy) {
+                if (!this.mobs.getValue()) {
+                    continue;
+                }
+            }
+            else if (!this.animals.getValue()) {
                 continue;
             }
             if (Tracers.mc.player.distanceTo(entity) >= this.range.getValue()) {
                 continue;
             }
-            int colour = this.getColour(entity);
-            if (colour == Integer.MIN_VALUE) {
-                if (!this.friends.getValue()) {
-                    continue;
-                }
-                colour = this.cycler.current();
+
+            final float[] c = this.getColour(entity);
+            if (c == null) {
+                continue;
             }
-            final float red = (colour >> 16 & 0xFF) / 255.0f;
-            final float green = (colour >> 8 & 0xFF) / 255.0f;
-            final float blue = (colour & 0xFF) / 255.0f;
-            drawLineToEntity(entity, red, green, blue, this.opacity.getValue());
+
+            final float ex = (float)(Mth.lerp(pt, entity.xo, entity.getX()) - cam.x);
+            final float ey = (float)(Mth.lerp(pt, entity.yo, entity.getY()) - cam.y);
+            final float ez = (float)(Mth.lerp(pt, entity.zo, entity.getZ()) - cam.z);
+
+            buf.vertex(m, sx, sy, sz).color(c[0], c[1], c[2], alpha).endVertex();
+            buf.vertex(m, ex, ey, ez).color(c[0], c[1], c[2], alpha).endVertex();
+            if (this.spine.getValue()) {
+                buf.vertex(m, ex, ey, ez).color(c[0], c[1], c[2], alpha).endVertex();
+                buf.vertex(m, ex, ey + entity.getBbHeight(), ez).color(c[0], c[1], c[2], alpha).endVertex();
+            }
+            any = true;
         }
+
+        if (any) {
+            tesselator.end();
+        }
+        else {
+            buf.discard();
+        }
+
+        RenderSystem.lineWidth(1.0f);
+        RenderSystem.enableDepthTest();
+        RenderSystem.enableTexture();
+        RenderSystem.disableBlend();
+        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
     }
 
-    private int getColour(final Entity entity) {
+    /** Devuelve {r,g,b} o null si la entidad no se debe dibujar. */
+    private float[] getColour(final Entity entity) {
         if (entity instanceof Player) {
             if (Friends.isFriend(entity.getName().getString())) {
-                return Integer.MIN_VALUE;
+                if (!this.friends.getValue()) {
+                    return null;
+                }
+                final int rgb = this.cycler.current();
+                return new float[] { (rgb >> 16 & 0xFF) / 255.0f, (rgb >> 8 & 0xFF) / 255.0f, (rgb & 0xFF) / 255.0f };
             }
             final float distance = Tracers.mc.player.distanceTo(entity);
             if (distance <= 32.0f) {
-                return new Color(1.0f - distance / 32.0f / 2.0f, distance / 32.0f, 0.0f).getRGB();
+                return new float[] { 1.0f - distance / 32.0f / 2.0f, distance / 32.0f, 0.0f };
             }
-            return new Color(0.0f, 0.9f, 0.0f).getRGB();
+            return new float[] { 0.0f, 0.9f, 0.0f };
         }
-        if (EntityUtil.isPassive(entity)) {
-            return ColorUtils.Colors.GREEN;
+        if (entity instanceof Enemy) {
+            return new float[] { 1.0f, 0.0f, 0.0f };
         }
-        return ColorUtils.Colors.RED;
-    }
-
-    public static double interpolate(final double now, final double then) {
-        return then + (now - then) * Tracers.mc.getFrameTime();
-    }
-
-    public static double[] interpolate(final Entity entity) {
-        final Vec3 renderPos = Tracers.mc.gameRenderer.getMainCamera().getPosition();
-        final Vec3 pos = EntityUtil.getInterpolatedPos(entity, Tracers.mc.getFrameTime());
-        return new double[] { pos.x - renderPos.x, pos.y - renderPos.y, pos.z - renderPos.z };
-    }
-
-    public static void drawLineToEntity(final Entity entity, final float red, final float green, final float blue, final float opacity) {
-        final double[] xyz = interpolate(entity);
-        drawLine(xyz[0], xyz[1], xyz[2], entity.getBbHeight(), red, green, blue, opacity);
-    }
-
-    public static void drawLine(final double posx, final double posy, final double posz, final double up, final float red, final float green, final float blue, final float opacity) {
-        final Vec3 eyes = Vec3.directionFromRotation(Tracers.mc.player.getXRot(), Tracers.mc.player.getYRot());
-        final Vec3 eye = Tracers.mc.player.getEyePosition(Tracers.mc.getFrameTime()).subtract(Tracers.mc.gameRenderer.getMainCamera().getPosition());
-        drawLineFromPosToPos(eye.x + eyes.x, eye.y + eyes.y, eye.z + eyes.z, posx, posy, posz, up, red, green, blue, opacity);
-    }
-
-    public static void drawLineFromPosToPos(final double posx, final double posy, final double posz, final double posx2, final double posy2, final double posz2, final double up, final float red, final float green, final float blue, final float opacity) {
-        RenderSystem.lineWidth(1.5f);
-        RenderSystem.setShader(GameRenderer::getPositionColorShader);
-        XuluTessellator.prepare(1);
-        XuluTessellator.begin(1);
-        final BufferBuilder buffer = XuluTessellator.getBufferBuilder();
-        buffer.vertex(posx, posy, posz).color(red, green, blue, opacity).endVertex();
-        buffer.vertex(posx2, posy2, posz2).color(red, green, blue, opacity).endVertex();
-        if (Tracers.INSTANCE != null && Tracers.INSTANCE.spine.getValue()) {
-            buffer.vertex(posx2, posy2, posz2).color(red, green, blue, opacity).endVertex();
-            buffer.vertex(posx2, posy2 + up, posz2).color(red, green, blue, opacity).endVertex();
-        }
-        Tesselator.getInstance().end();
-        RenderSystem.lineWidth(1.0f);
-        RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+        return new float[] { 0.0f, 1.0f, 0.0f };
     }
 }

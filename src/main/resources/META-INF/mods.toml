@@ -18,7 +18,7 @@ license="GPL-3.0-only"
 
 [[mods]]
     modId="xulu"
-    version="1.0.0-alpha"
+    version="0.0.1-beta"
     displayName="XuluPort"
     authors="Elementars, XuluPort contributors"
     description='Xulu v1.5.2 port to Minecraft 1.18.2 (Forge)'
