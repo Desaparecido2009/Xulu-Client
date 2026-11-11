@@ -1,0 +1,43 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.elementars.eclient.mixin.mixins",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "xulu.refmap.json",
+  "client": [
+    "TitleScreenMixin",
+    "MixinConnection",
+    "MixinClientLevel",
+    "MixinEntity",
+    "MixinPlayer",
+    "MixinFontRenderer",
+    "MixinGui",
+    "MixinLocalPlayer",
+    "MixinAbstractClientPlayer",
+    "MixinContainerPlayer",
+    "MixinC00Handshake",
+    "MixinMinecraft",
+    "AccessorMinecraft",
+    "MixinCamera",
+    "MixinMinecraftStop",
+    "MixinMultiPlayerGameMode",
+    "MixinLivingEntityRenderer",
+    "MixinPlayerRenderer",
+    "MixinEndCrystalRenderer",
+    "MixinModelPlayer",
+    "MixinKeyboardInput",
+    "MixinGameRenderer",
+    "MixinItemEntityRenderer",
+    "MixinBlockEntityRenderDispatcher",
+    "MixinScreenShulkerPreview",
+    "AccessorServerboundMovePlayerPacket",
+    "AccessorLevelRenderer",
+    "AccessorClientTextTooltip",
+    "MixinLocalPlayerPush",
+    "MixinEntityPush",
+    "AccessorMultiPlayerGameMode"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
