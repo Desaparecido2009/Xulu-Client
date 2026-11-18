@@ -1,5 +1,7 @@
 package com.elementars.eclient.module.misc;
 
+
+import net.minecraft.network.chat.TextComponent;
 import com.elementars.eclient.mixin.mixins.AccessorMinecraft;
 import com.elementars.eclient.module.Category;
 import com.elementars.eclient.module.Module;
@@ -51,6 +53,12 @@ public class AutoWither extends Module
         this.delay = this.register(new Value<Integer>("Delay", this, 20, 12, 100));
         this.rotate = this.register(new Value<Boolean>("Rotate", this, true));
         this.debug = this.register(new Value<Boolean>("Debug", this, false));
+    }
+
+    private void debugMsg(final String message) {
+        if (this.debug.getValue() && AutoWither.mc.player != null) {
+            AutoWither.mc.player.displayClientMessage(new TextComponent(message), false);
+        }
     }
 
     private void placeBlock(final BlockPos pos, final boolean rotate) {
@@ -172,7 +180,7 @@ public class AutoWither extends Module
             this.rotationPlaceableX = false;
             this.rotationPlaceableZ = false;
             if (!this.checkBlocksInHotbar()) {
-                this.sendDebugMessage("no blocks in hotbar");
+                this.debugMsg("no blocks in hotbar");
                 return;
             }
             final List<BlockPos> blockPosList = BlockInteractionHelper.getSphere(AutoWither.mc.player.blockPosition().below(), this.placeRange.getValue(), this.placeRange.getValue().intValue(), false, true, 0);
@@ -188,7 +196,7 @@ public class AutoWither extends Module
             if (noPositionInArea) {
                 if (this.useMode.getValue().equalsIgnoreCase("Single")) {
                     if (this.debug.getValue()) {
-                        this.sendDebugMessage(ChatFormatting.RED.toString() + "Position not valid, disabling.");
+                        this.debugMsg(ChatFormatting.RED + "Position not valid, disabling.");
                     }
                     this.disable();
                 }

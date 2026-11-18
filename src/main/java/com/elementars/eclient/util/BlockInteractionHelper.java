@@ -79,7 +79,7 @@ public class BlockInteractionHelper
             final BlockPos neighbor = pos.relative(side);
             final Direction side2 = side.getOpposite();
             if (canBeClicked(neighbor)) {
-                final Vec3 hitVec = Vec3.atLowerCornerOf(neighbor).add(0.5, 0.5, 0.5).add(Vec3.atLowerCornerOf(side2.getNormal()).xRot(0.5f));
+                final Vec3 hitVec = Vec3.atLowerCornerOf(neighbor).add(0.5, 0.5, 0.5).add(Vec3.atLowerCornerOf(side2.getNormal()).scale(0.5));
                 if (eyesPos.distanceToSqr(hitVec) <= 18.0625) {
                     faceVectorPacketInstant(hitVec);
                     processRightClickBlock(neighbor, side2, hitVec);
