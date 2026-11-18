@@ -35,7 +35,12 @@
     "AccessorClientTextTooltip",
     "MixinLocalPlayerPush",
     "MixinEntityPush",
-    "AccessorMultiPlayerGameMode"
+    "AccessorMultiPlayerGameMode",
+    "MixinHumanoidArmorLayer",
+    "MixinClientPacketListener",
+    "MixinLocalPlayerSound",
+    "MixinNetherPortalBlock",
+    "MixinLevelRenderer"
   ],
   "injectors": {
     "defaultRequire": 1
