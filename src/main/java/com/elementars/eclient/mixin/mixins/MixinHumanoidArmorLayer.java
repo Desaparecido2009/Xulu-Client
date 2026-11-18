@@ -4,6 +4,7 @@ import com.elementars.eclient.Xulu;
 import com.elementars.eclient.module.render.NoRender;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.Model;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer;
@@ -19,7 +20,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class MixinHumanoidArmorLayer
 {
     @Inject(method = { "renderArmorPiece" }, at = { @At("HEAD") }, cancellable = true)
-    private void xulu$hideArmor(final PoseStack poseStack, final MultiBufferSource buffer, final LivingEntity entity, final EquipmentSlot slot, final int packedLight, final Model model, final CallbackInfo info) {
+    private void xulu$hideArmor(final PoseStack poseStack, final MultiBufferSource buffer, final LivingEntity entity, final EquipmentSlot slot, final int packedLight, final HumanoidModel<?> model, final CallbackInfo info) {
         final NoRender noRender = Xulu.MODULE_MANAGER.getModuleT(NoRender.class);
         if (noRender != null && noRender.isToggled() && noRender.armor.getValue()) {
             info.cancel();

@@ -35,7 +35,7 @@ public class Step extends Module
     }
 
     @EventTarget
-    public void onWalkingUpdate(final MotionEvent.Pre event) {
+    public void onWalkingUpdate(final MotionEvent event) {
         if (Step.mc.player == null || Step.mc.level == null) {
             return;
         }
