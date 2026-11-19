@@ -2,6 +2,7 @@ package com.elementars.eclient.mixin.mixins;
 
 import com.elementars.eclient.event.events.EventReceivePacket;
 import com.elementars.eclient.event.events.EventSendPacket;
+import com.elementars.eclient.module.misc.NoPacketKick;
 import io.netty.channel.ChannelHandlerContext;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
@@ -43,6 +44,13 @@ public abstract class MixinConnection
             finally {
                 xulu$replacingReceivePacket = false;
             }
+            callback.cancel();
+        }
+    }
+
+    @Inject(method = "exceptionCaught", at = @At("HEAD"), cancellable = true)
+    private void xulu$noPacketKick(final ChannelHandlerContext context, final Throwable throwable, final CallbackInfo callback) {
+        if (NoPacketKick.isEnabled()) {
             callback.cancel();
         }
     }

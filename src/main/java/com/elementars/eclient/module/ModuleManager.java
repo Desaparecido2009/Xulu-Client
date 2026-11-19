@@ -101,6 +101,22 @@ import com.elementars.eclient.module.misc.NoEntityTrace;
 import com.elementars.eclient.module.misc.VisualRange;
 import com.elementars.eclient.module.misc.FovSlider;
 import com.elementars.eclient.module.misc.Time;
+import com.elementars.eclient.module.misc.Timer;
+import com.elementars.eclient.module.misc.PortalChat;
+import com.elementars.eclient.module.misc.LiquidInteract;
+import com.elementars.eclient.module.misc.NoPacketKick;
+import com.elementars.eclient.module.misc.AntiDeathScreen;
+import com.elementars.eclient.module.misc.Avoid;
+import com.elementars.eclient.module.misc.SkinFlicker;
+import com.elementars.eclient.module.misc.CoordLogger;
+import com.elementars.eclient.module.combat.AntiChainPop;
+import com.elementars.eclient.module.player.TpsSync;
+import com.elementars.eclient.module.player.PacketSwing;
+import com.elementars.eclient.module.render.Compass;
+import com.elementars.eclient.module.render.ExtraTab;
+import com.elementars.eclient.module.render.OffhandSwing;
+import com.elementars.eclient.module.render.EnchantColor;
+import com.elementars.eclient.module.render.HellenKeller;
 import com.elementars.eclient.module.player.AntiVoid;
 import com.elementars.eclient.module.player.AutoReplenish;
 import com.elementars.eclient.module.player.AutoWalk;
@@ -218,6 +234,22 @@ public class ModuleManager
         ModuleManager.modules.add(new Logo());
         ModuleManager.modules.add(new Target());
         ModuleManager.modules.add(new HudEditor());
+        ModuleManager.modules.add(new Timer());
+        ModuleManager.modules.add(new TpsSync());
+        ModuleManager.modules.add(new PacketSwing());
+        ModuleManager.modules.add(new Compass());
+        ModuleManager.modules.add(new PortalChat());
+        ModuleManager.modules.add(new LiquidInteract());
+        ModuleManager.modules.add(new NoPacketKick());
+        ModuleManager.modules.add(new AntiDeathScreen());
+        ModuleManager.modules.add(new Avoid());
+        ModuleManager.modules.add(new SkinFlicker());
+        ModuleManager.modules.add(new ExtraTab());
+        ModuleManager.modules.add(new OffhandSwing());
+        ModuleManager.modules.add(new EnchantColor());
+        ModuleManager.modules.add(new HellenKeller());
+        ModuleManager.modules.add(new AntiChainPop());
+        ModuleManager.modules.add(new CoordLogger());
     }
 
     public static void onUpdate() {
